@@ -56,7 +56,7 @@ def main(cobra_config_file, bench_config_file, configs_file, instances_file):
     with open(bench_config_file, 'r') as file:
         bench_config = json.loads(file.read())
     bench_name = bench_config['name']
-    exec_path = os.path.abspath(bench_config['executable'])
+    exec_path = bench_config['executable']
     timeout = bench_config['timeout']
     n_runs = bench_config['runs']
     mem_limit = bench_config['mem_limit']
@@ -120,7 +120,8 @@ def main(cobra_config_file, bench_config_file, configs_file, instances_file):
 
                 with open(job_path, 'w') as file:
                     file.write('#!/bin/sh\n')
-                    cmd = string.Template(cmd).substitute(timeout=timeout * timeout_factor, seed=random.randint(0,2**32), log_folder=log_folder)
+                    file.write(f'cd {os.path.abspath(log_folder)}\n')
+                    cmd = string.Template(cmd).substitute(timeout=timeout * timeout_factor, seed=random.randint(0,2**32), log_folder=os.path.abspath(log_folder))
                     file.write(cmd)
 
                 st = os.stat(job_path)

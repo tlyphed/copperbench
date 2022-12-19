@@ -1,0 +1,2 @@
+config1 --seed $seed --timeout $timeout
+config2 --seed $seed --timeout $timeout

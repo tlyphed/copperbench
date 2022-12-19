@@ -1,0 +1,10 @@
+{
+    "name" : "example_bench",
+    "executable" :  "solver",
+    "timeout" : 60,   
+    "runs" : 5,
+    "mem_limit" : 25600,
+    "request_cpus" : 1,
+    "timeout_factor" : 1000,
+    "initial_seed" : 1234
+}

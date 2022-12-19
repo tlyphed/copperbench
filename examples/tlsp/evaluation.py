@@ -1,5 +1,7 @@
 import re
+import sys
 
+sys.path.append('/Users/tgeibing/Documents/git/cobrabench')
 from cobrabench import process_bench
 
 

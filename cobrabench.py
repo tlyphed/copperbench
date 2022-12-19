@@ -21,24 +21,20 @@ Requirements            = ${requirements}
 queue 
 '''
 
-
 def process_bench(bench_folder, log_read_func):
     data = []
     for config_dir in os.scandir(bench_folder):
-        if config_dir.name.startswith('.'):
-            continue
-        for instance_dir in os.scandir(config_dir):
-            if instance_dir.name.startswith('.'):
-                continue
-            for run_dir in os.scandir(instance_dir):
-                if run_dir.name.startswith('.'):
-                    continue
-                result = log_read_func('stdout.log')
-                if result:
-                    result['config'] = config_dir.name
-                    result['instance'] = instance_dir.name
-                    result['run'] = run_dir.name
-                    data += [result]
+        if config_dir.name.startswith('config') and os.path.isdir(config_dir):
+            for instance_dir in os.scandir(config_dir):
+                if instance_dir.name.startswith('instance') and os.path.isdir(instance_dir):
+                    for run_dir in os.scandir(instance_dir):
+                        if run_dir.name.startswith('run') and os.path.isdir(run_dir):
+                            result = log_read_func(run_dir.path + '/stdout.log')
+                            if result:
+                                result['config'] = config_dir.name
+                                result['instance'] = instance_dir.name
+                                result['run'] = run_dir.name
+                                data += [result]
 
     df = pd.DataFrame.from_dict(data)
     return df

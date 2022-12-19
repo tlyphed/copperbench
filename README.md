@@ -37,5 +37,5 @@ The file `[benchmark name].sub` can then be submitted to schedule each `job.sh`.
 
 The config and instance folders are numbered in the given order, but cobrabench also creates json files (`config_names.json` and `instance_names.json`) linking them to what was specified in `config.txt` and `instances.txt`.
 
-An example of how the results can be processed, is given in [here](examples/tlsp/evaluation.py). Do not do this on the cluster, but rather copy the files to your machine first.
+An example of how the results can be processed, is given [here](examples/tlsp/evaluation.py). Do not do this on the cluster, but rather copy the files to your machine first.
 

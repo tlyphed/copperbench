@@ -52,11 +52,17 @@ def main(cobra_config_file, bench_config_file, configs_file, instances_file):
     with open(bench_config_file, 'r') as file:
         bench_config = json.loads(file.read())
     bench_name = bench_config['name']
-    exec_path = bench_config['executable']
     timeout = bench_config['timeout']
     n_runs = bench_config['runs']
     mem_limit = bench_config['mem_limit']
     request_cpu = bench_config['request_cpus']
+
+    cpus = int(math.ceil(request_cpu / (cpu_per_node / mem_lines)) * (cpu_per_node / mem_lines))
+
+    if 'executable' in bench_config:
+        exec_path = bench_config['executable']
+    else:
+        exec_path = None
 
     if 'timeout_factor' in bench_config:
         timeout_factor = bench_config['timeout_factor']
@@ -88,7 +94,7 @@ def main(cobra_config_file, bench_config_file, configs_file, instances_file):
     with open(f'{bench_name}/config_names.json', 'w') as file:
         file.write(json.dumps(configs))
     
-    for config_name, params in configs.items():
+    for config_name, config in configs.items():
         for instance_name, data in instances.items():
 
             for i in range(1, n_runs + 1):
@@ -110,9 +116,12 @@ def main(cobra_config_file, bench_config_file, configs_file, instances_file):
                 runsolver_log = 'runsolver.log'
                 runsolver_log_path = os.path.abspath(log_folder + '/' + runsolver_log)
 
-                cmd = f'{runsolver_path} -w {runsolver_log_path} -W {timeout+10} -V {mem_limit} {exec_path} {params} {data}'
+                run =  f'{config} {data}'
 
-                cpus = int(math.ceil(request_cpu / (cpu_per_node / mem_lines)) * (cpu_per_node / mem_lines))
+                if exec_path != None:
+                    run =  f'{exec_path} {run}'
+                    
+                cmd = f'{runsolver_path} -w {runsolver_log_path} -W {timeout+10} -V {mem_limit} {run}'
 
                 with open(job_path, 'w') as file:
                     file.write('#!/bin/sh\n')

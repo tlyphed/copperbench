@@ -1,0 +1,6 @@
+{
+    "runsolver_path" : "/home/tgeibing/Applications/runsolver/runsolver",
+    "mem_lines" : 4,
+    "cpu_per_node" : 24,
+    "excluded_nodes" : ["cobra-submit.kr.tuwien.ac.at", "cobra-master.kr.tuwien.ac.at"]
+}

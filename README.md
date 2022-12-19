@@ -9,7 +9,7 @@ python cobrabench.py examples/toy/cobra_config.json examples/toy/bench_config.js
 
 The first parameter `cobra_config.json` contains things like the number of cores on each node, the location of runsolver, and the number of memory lines. The tool tries to ensure that each job always gets at a memory line exclusely.
 The second parameter `bench_config.json` contains parameters specific to the current benchmark like the executable that should be run. 
-Lastly, `config.txt` and `instances.txt` contain the args to be tested as well the instances. Each config is run for every instance.
+Lastly, `config.txt` and `instances.txt` contain the args to be tested as well the instances. Each config is run for every instance (the lines are concatenated).
 
 cobrabench then creates the following folder structure and files:
 ```

@@ -8,6 +8,8 @@ import json
 import sys
 import pandas as pd
 
+MAX_JOBS_PER_FILE = 5000
+
 SUBMIT_TEMPLATE = '''
 executable              = ${executable} 
 input                   = /dev/null
@@ -39,6 +41,11 @@ def process_bench(bench_folder, log_read_func):
     df = pd.DataFrame.from_dict(data)
     return df
 
+def write_sub(queue_cmds, filename):
+    with open(filename, 'w') as file:
+        for cmd in queue_cmds:
+            file.write(cmd)
+            file.write('\n')
 
 def main(cobra_config_file, bench_config_file, configs_file, instances_file):
 
@@ -89,32 +96,35 @@ def main(cobra_config_file, bench_config_file, configs_file, instances_file):
                 i += 1
     
     os.mkdir(bench_name)
-    with open(f'{bench_name}/instance_names.json', 'w') as file:
+    os.chdir(bench_name)
+    with open('instance_names.json', 'w') as file:
         file.write(json.dumps(instances))
-    with open(f'{bench_name}/config_names.json', 'w') as file:
+    with open('config_names.json', 'w') as file:
         file.write(json.dumps(configs))
     
+
+    queue_cmds = []
     for config_name, config in configs.items():
         for instance_name, data in instances.items():
 
             for i in range(1, n_runs + 1):
-                log_folder = f'{bench_name}/{config_name}/{instance_name}/run{i}/'
-                os.makedirs(log_folder, exist_ok=True)
+                log_folder = f'{config_name}/{instance_name}/run{i}/'
+                os.makedirs(log_folder)
 
                 job_file = 'job.sh'
-                job_path = os.path.abspath(log_folder + '/' + job_file)
+                job_path = log_folder + '/' + job_file
 
                 log_file = 'stdout.log'
-                log_path = os.path.abspath(log_folder + '/' + log_file)
+                log_path = log_folder + '/' + log_file
 
                 err_file = 'stderr.log' 
-                err_path = os.path.abspath(log_folder + '/' + err_file)
+                err_path = log_folder + '/' + err_file
                 
                 cobra_log = 'condor.log' 
-                cobra_log_path = os.path.abspath(log_folder + '/' + cobra_log)
+                cobra_log_path = log_folder + '/' + cobra_log
 
                 runsolver_log = 'runsolver.log'
-                runsolver_log_path = os.path.abspath(log_folder + '/' + runsolver_log)
+                runsolver_log_path = log_folder + '/' + runsolver_log
 
                 run =  f'{config} {data}'
 
@@ -125,21 +135,34 @@ def main(cobra_config_file, bench_config_file, configs_file, instances_file):
 
                 with open(job_path, 'w') as file:
                     file.write('#!/bin/sh\n')
-                    file.write(f'cd {os.path.abspath(log_folder)}\n')
-                    cmd = string.Template(cmd).substitute(timeout=timeout * timeout_factor, seed=random.randint(0,2**32), log_folder=os.path.abspath(log_folder))
+                    working_dir = os.path.abspath('.')
+                    file.write(f'cd {working_dir}\n')
+                    cmd = string.Template(cmd).substitute(timeout=timeout * timeout_factor, seed=random.randint(0,2**32), log_folder=log_folder)
                     file.write(cmd)
 
                 st = os.stat(job_path)
                 os.chmod(job_path, st.st_mode | stat.S_IEXEC)
 
-                with open(f'{bench_name}/{bench_name}.sub', 'a') as file:
-                    requirements = ''
-                    if excluded_nodes:
-                        requirements = '(' + ' && '.join([ f'Machine != "{node}"' for node in excluded_nodes ]) + ')'
 
-                    file.write(string.Template(SUBMIT_TEMPLATE).substitute(submit_log=cobra_log_path, executable=job_path, output_log=log_path, 
-                               error_log=err_path, request_memory=mem_limit, request_cpu=cpus, requirements=requirements))
-                    file.write('\n')
+                requirements = ''
+                if excluded_nodes:
+                    requirements = '(' + ' && '.join([ f'Machine != "{node}"' for node in excluded_nodes ]) + ')'
+
+                queue_cmd = string.Template(SUBMIT_TEMPLATE).substitute(submit_log=cobra_log_path, executable=job_path, output_log=log_path, 
+                            error_log=err_path, request_memory=mem_limit, request_cpu=cpus, requirements=requirements)
+
+                queue_cmds += [queue_cmd]
+
+    if len(queue_cmds) <= MAX_JOBS_PER_FILE:
+        write_sub(queue_cmds, f'{bench_name}.sub')
+    else:
+        n_files = math.ceil(len(queue_cmds) / MAX_JOBS_PER_FILE) 
+        queues = [ [] for _ in range(n_files) ]
+        for i in range(len(queue_cmds)):
+            n = (i // MAX_JOBS_PER_FILE) 
+            queues[n] += [queue_cmds[i]]
+        for i in range(len(queues)):
+            write_sub(queues[i], f'{bench_name}{i+1}.sub')
                 
 if __name__ == "__main__":
     main(*sys.argv[1:])

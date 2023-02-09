@@ -1,6 +1,5 @@
 {
     "name" : "example_bench",
-    "executable" :  "solver",
     "timeout" : 60,   
     "runs" : 5,
     "mem_limit" : 25600,

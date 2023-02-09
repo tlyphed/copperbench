@@ -1,6 +1,6 @@
 {
     "name" : "bench_vlns",
-    "executable" :  "../../../../../jre1.8.0_301/bin/java -XX:ActiveProcessorCount=1 -XX:+UseSerialGC -jar ../../../../../solver/planungstool-3.2-Solver.jar",
+    "executable" :  "../../jre1.8.0_301/bin/java -XX:ActiveProcessorCount=1 -XX:+UseSerialGC -jar ../../solver/planungstool-3.2-Solver.jar",
     "timeout" : 7200,   
     "runs" : 5,
     "mem_limit" : 25600,

@@ -7,7 +7,6 @@ from cobrabench import process_bench
 
 regex_results = re.compile(r'Total result: \n\t- Hard conflicts: (?P<conflicts>\d+)\n\t- Soft penalties: (?P<penalty>\d+)')
 regex_optimal = re.compile(r'found optimal solution')
-
 regex_penalties = re.compile(r"- Same employee: (?P<sameEmployee>\d+)\n\t- Project completion time: (?P<projectCompletionTime>\d+)\n\t- Preferred employees: (?P<preferredEmployees>\d+)\n\t- Job target date: (?P<targetDate>\d+)")
 
 

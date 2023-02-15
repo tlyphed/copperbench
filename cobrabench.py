@@ -9,24 +9,10 @@ import sys
 import pandas as pd
 import datetime
 
-SUBMIT_TEMPLATE = '''#!/bin/bash
-#
-#SBATCH --job-name=${job_name}
-#
-#SBATCH --ntasks=1
-#SBATCH --time=${request_time}
-#SBATCH --cpus-per-task=${request_cpu}
-#SBATCH --mem-per-cpu=${request_memory}
-#SBATCH --output=${batch_output}
-#SBATCH --error=${batch_output}
-#
-#SBATCH --array=0-${n_jobs}
-
-FILES=(config*/instance*/run*/job.sh)
-
-'''
-
-RUN_SOLVER_KILL_DELAY = 10
+DEFAULT_RUN_SOLVER_KILL_DELAY = 10
+DEFAULT_SLURM_TIME_BUFFER = 15
+DEFAULT_N_MEM_LINES = 4
+DEFAULT_N_CPUS = 24
 
 def process_bench(bench_folder, log_read_func):
     data = []
@@ -52,16 +38,21 @@ def write_sub(queue_cmds, filename):
             file.write(cmd)
             file.write('\n')
 
-def main(cobra_config_file, bench_config_file, configs_file, instances_file):
+def main(cobra_config, bench_config, configs_file, instances_file):
 
-    with open(cobra_config_file, 'r') as file:
-        cobra_config = json.loads(file.read())
-    runsolver_path = cobra_config['runsolver_path']
-    mem_lines = cobra_config['mem_lines']
-    cpu_per_node = cobra_config['cpu_per_node']
+    if 'runsolver_path' in cobra_config:
+        runsolver_path = cobra_config['runsolver_path']
+    else:
+        runsolver_path = "runsolver"
+    if 'mem_lines' in cobra_config:
+        mem_lines = cobra_config['mem_lines']
+    else:
+        mem_lines = DEFAULT_N_MEM_LINES
+    if 'cpu_per_node' in cobra_config:
+        cpu_per_node = cobra_config['cpu_per_node']
+    else:
+        cpu_per_node = DEFAULT_N_CPUS 
 
-    with open(bench_config_file, 'r') as file:
-        bench_config = json.loads(file.read())
     bench_name = bench_config['name']
     timeout = bench_config['timeout']
     n_runs = bench_config['runs']
@@ -71,6 +62,14 @@ def main(cobra_config_file, bench_config_file, configs_file, instances_file):
         working_dir = bench_config['working_dir']
     else:
         working_dir = None
+    if 'runsolver_kill_delay' in bench_config:
+        runsolver_kill_delay = bench_config['runsolver_kill_delay']
+    else:
+        runsolver_kill_delay = DEFAULT_RUN_SOLVER_KILL_DELAY
+    if 'slurm_time_buffer' in bench_config:
+        slurm_time_buffer = bench_config['slurm_time_buffer']
+    else:
+        slurm_time_buffer = DEFAULT_SLURM_TIME_BUFFER
 
     cpus = int(math.ceil(request_cpu / (cpu_per_node / mem_lines)) * (cpu_per_node / mem_lines))
 
@@ -91,7 +90,7 @@ def main(cobra_config_file, bench_config_file, configs_file, instances_file):
     with open(instances_file, 'r') as file:
         i = 1
         for line in file:
-            if not line.startswith('#'):
+            if not line.startswith('#') and len(line.strip()) > 0:
                 instances[f'instance{i}'] = line.strip()
                 i += 1
 
@@ -99,7 +98,7 @@ def main(cobra_config_file, bench_config_file, configs_file, instances_file):
     with open(configs_file, 'r') as file:
         i = 1
         for line in file:
-            if not line.startswith('#'):
+            if not line.startswith('#') and len(line.strip()) > 0:
                 configs[f'config{i}'] = line.strip()
                 i += 1
     
@@ -136,7 +135,7 @@ def main(cobra_config_file, bench_config_file, configs_file, instances_file):
                 if exec_path != None:
                     run =  f'{exec_path} {run}'
                     
-                cmd = f'{runsolver_path} -w {runsolver_log_path} -W {timeout} -V {mem_limit} -d {RUN_SOLVER_KILL_DELAY} {run} 2> {err_path} 1> {log_path}'
+                cmd = f'{runsolver_path} -w {runsolver_log_path} -W {timeout} -V {mem_limit} -d {runsolver_kill_delay} {run} 2> {err_path} 1> {log_path}'
 
                 with open(job_path, 'w') as file:
                     file.write('#!/bin/sh\n')
@@ -150,9 +149,32 @@ def main(cobra_config_file, bench_config_file, configs_file, instances_file):
                 counter += 1
     
     with open(f'{bench_name}.sbatch', 'w') as file:
-        file.write(string.Template(SUBMIT_TEMPLATE).substitute(request_time=datetime.timedelta(seconds=timeout), batch_output=f'{bench_name}.log',
-                   request_memory=int(math.ceil(mem_limit/cpus)), request_cpu=cpus, job_name=bench_name, n_jobs=counter-1))
-        file.write('srun ${FILES[$SLURM_ARRAY_TASK_ID]}')
+        file.write('#!/bin/bash\n')
+        file.write('#\n')
+        file.write(f'#SBATCH --job-name={bench_name}\n')
+        file.write(f'#SBATCH --time={datetime.timedelta(seconds=timeout+slurm_time_buffer)}\n')
+        file.write(f'#SBATCH --cpus-per-task={cpus}\n')
+        file.write(f'#SBATCH --mem-per-cpu={int(math.ceil(mem_limit/cpus))}\n')
+        file.write(f'#SBATCH --output={bench_name}.log\n')
+        file.write(f'#SBATCH --error={bench_name}.log\n')
+        file.write(f'#SBATCH --array=0-{counter - 1}\n')
+        file.write('#SBATCH --ntasks=1\n\n')
+        file.write('FILES=(config*/instance*/run*/job.sh)\n\n')
+        file.write('srun ${FILES[$SLURM_ARRAY_TASK_ID]}\n')
         
 if __name__ == "__main__":
-    main(*sys.argv[1:])
+    if len(sys.argv) == 5:
+        cobra_config_file, bench_config_file, configs_file, instances_file = sys.argv[1:]
+        with open(cobra_config_file, 'r') as file:
+            cobra_config = json.loads(file.read())
+    elif len(sys.argv) == 4:
+        bench_config_file, configs_file, instances_file = sys.argv[1:]
+        cobra_config = {}
+    else:
+        print("usage: cobrabench.py [cobra_config_file] <bench_config_file> <configs_file> <instances_file>")
+        sys.exit(1)
+    
+    with open(bench_config_file, 'r') as file:
+        bench_config = json.loads(file.read())
+
+    main(cobra_config, bench_config, configs_file, instances_file)

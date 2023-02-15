@@ -55,7 +55,10 @@ def main(cobra_config, bench_config, configs_file, instances_file):
 
     bench_name = bench_config['name']
     timeout = bench_config['timeout']
-    n_runs = bench_config['runs']
+    if 'runs' in bench_config:
+        n_runs = bench_config['runs']
+    else:
+        n_runs = 1
     mem_limit = bench_config['mem_limit']
     request_cpu = bench_config['request_cpus']
     if 'working_dir' in bench_config:

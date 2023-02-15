@@ -32,11 +32,6 @@ def process_bench(bench_folder, log_read_func):
     df = pd.DataFrame.from_dict(data)
     return df
 
-def write_sub(queue_cmds, filename):
-    with open(filename, 'w') as file:
-        for cmd in queue_cmds:
-            file.write(cmd)
-            file.write('\n')
 
 def main(cobra_config, bench_config, configs_file, instances_file):
 

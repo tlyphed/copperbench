@@ -90,25 +90,27 @@ def main(cobra_config, bench_config, configs_file, instances_file):
     with open(instances_file, 'r') as file:
         i = 1
         for line in file:
-            if not line.startswith('#') and len(line.strip()) > 0:
-                instances[f'instance{i}'] = line.strip()
+            instance = line.strip()
+            if not instance.startswith('#') and len(instance) > 0:
+                instances[f'instance{i}'] = instance
                 i += 1
 
     configs = {}
     with open(configs_file, 'r') as file:
         i = 1
         for line in file:
-            if not line.startswith('#') and len(line.strip()) > 0:
-                configs[f'config{i}'] = line.strip()
+            config = line.strip()
+            if not config.startswith('#') and len(config) > 0:
+                configs[f'config{i}'] = config
                 i += 1
     
     os.mkdir(bench_name)
     os.chdir(bench_name)
 
     with open('instance_names.json', 'w') as file:
-        file.write(json.dumps(instances))
+        file.write(json.dumps(instances, indent=4))
     with open('config_names.json', 'w') as file:
-        file.write(json.dumps(configs))
+        file.write(json.dumps(configs, indent=4))
 
     counter = 0
     for config_name, config in configs.items():
@@ -119,16 +121,16 @@ def main(cobra_config, bench_config, configs_file, instances_file):
                 os.makedirs(log_folder)
 
                 job_file = 'job.sh'
-                job_path = log_folder + '/' + job_file
+                job_path = log_folder + job_file
 
                 log_file = 'stdout.log'
-                log_path = log_folder + '/' + log_file
+                log_path = log_folder + log_file
 
                 err_file = 'stderr.log' 
-                err_path = log_folder + '/' + err_file
+                err_path = log_folder + err_file
 
                 runsolver_log = 'runsolver.log'
-                runsolver_log_path = log_folder + '/' + runsolver_log
+                runsolver_log_path = log_folder + runsolver_log
 
                 run =  f'{config} {data}'
 

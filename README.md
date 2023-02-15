@@ -22,7 +22,6 @@ cobrabench then creates the following folder structure and files:
          |__job.sh
          |__stdout.log
          |__stderr.log
-         |__condor.log
          |__runsolver.log
       |__run2
       |__ ...
@@ -32,7 +31,7 @@ cobrabench then creates the following folder structure and files:
 |__ ...
 |__config_names.json
 |__instance_names.json
-|__[benchmark name].sub
+|__[benchmark name].sbatch
 ```
 
 The file `[benchmark name].sub` can then be submitted to schedule each `job.sh`.

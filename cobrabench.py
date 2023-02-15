@@ -12,16 +12,18 @@ import datetime
 SUBMIT_TEMPLATE = '''#!/bin/bash
 #
 #SBATCH --job-name=${job_name}
-#SBATCH --output=${output_log}
-#SBATCH --error=${error_log}
 #
 #SBATCH --ntasks=1
 #SBATCH --time=${request_time}
 #SBATCH --cpus-per-task=${request_cpu}
 #SBATCH --mem-per-cpu=${request_memory}
+#SBATCH --output=${batch_output}
+#SBATCH --error=${batch_output}
 #
+#SBATCH --array=0-${n_jobs}
 
-srun ${executable} 
+FILES=(config*/instance*/run*/job.sh)
+
 '''
 
 RUN_SOLVER_KILL_DELAY = 10
@@ -65,6 +67,10 @@ def main(cobra_config_file, bench_config_file, configs_file, instances_file):
     n_runs = bench_config['runs']
     mem_limit = bench_config['mem_limit']
     request_cpu = bench_config['request_cpus']
+    if 'working_dir' in bench_config:
+        working_dir = bench_config['working_dir']
+    else:
+        working_dir = None
 
     cpus = int(math.ceil(request_cpu / (cpu_per_node / mem_lines)) * (cpu_per_node / mem_lines))
 
@@ -99,26 +105,22 @@ def main(cobra_config_file, bench_config_file, configs_file, instances_file):
     
     os.mkdir(bench_name)
     os.chdir(bench_name)
+
     with open('instance_names.json', 'w') as file:
         file.write(json.dumps(instances))
     with open('config_names.json', 'w') as file:
         file.write(json.dumps(configs))
-    
 
-    sbatches = []
+    counter = 0
     for config_name, config in configs.items():
         for instance_name, data in instances.items():
             for i in range(1, n_runs + 1):
-                job_name = f'{bench_name}_{config_name}_{instance_name}_run{i}/'
 
                 log_folder = f'{config_name}/{instance_name}/run{i}/'
                 os.makedirs(log_folder)
 
                 job_file = 'job.sh'
                 job_path = log_folder + '/' + job_file
-
-                sbatch_file = 'sbatch.sh'
-                sbatch_path = log_folder + '/' + sbatch_file
 
                 log_file = 'stdout.log'
                 log_path = log_folder + '/' + log_file
@@ -134,31 +136,23 @@ def main(cobra_config_file, bench_config_file, configs_file, instances_file):
                 if exec_path != None:
                     run =  f'{exec_path} {run}'
                     
-                cmd = f'{runsolver_path} -w {runsolver_log_path} -W {timeout} -V {mem_limit} -d {RUN_SOLVER_KILL_DELAY} {run}'
+                cmd = f'{runsolver_path} -w {runsolver_log_path} -W {timeout} -V {mem_limit} -d {RUN_SOLVER_KILL_DELAY} {run} 2> {err_path} 1> {log_path}'
 
                 with open(job_path, 'w') as file:
                     file.write('#!/bin/sh\n')
-                    working_dir = os.path.abspath('.')
-                    file.write(f'cd {working_dir}\n')
+                    if working_dir != None:
+                        file.write(f'cd {working_dir}\n')
                     cmd = string.Template(cmd).substitute(timeout=timeout * timeout_factor, seed=random.randint(0,2**32), log_folder=log_folder)
                     file.write(cmd)
 
                 st = os.stat(job_path)
                 os.chmod(job_path, st.st_mode | stat.S_IEXEC)
-
-
-                with open(sbatch_path, 'w') as file:
-                    file.write(string.Template(SUBMIT_TEMPLATE).substitute(executable=job_path, output_log=log_path, request_time=datetime.timedelta(seconds=timeout),
-                               error_log=err_path, request_memory=int(math.ceil(mem_limit/cpus)), request_cpu=cpus, job_name=job_name))
-
-                sbatches += [sbatch_path]
+                counter += 1
     
-    with open(f'sbatch.sh', 'w') as file:
-        file.write('#!/bin/sh\n\n')
-        for sbatch in sbatches:
-            file.write('sbatch ')
-            file.write(sbatch)
-            file.write("\n")
-
+    with open(f'{bench_name}.sbatch', 'w') as file:
+        file.write(string.Template(SUBMIT_TEMPLATE).substitute(request_time=datetime.timedelta(seconds=timeout), batch_output=f'{bench_name}.log',
+                   request_memory=int(math.ceil(mem_limit/cpus)), request_cpu=cpus, job_name=bench_name, n_jobs=counter-1))
+        file.write('srun ${FILES[$SLURM_ARRAY_TASK_ID]}')
+        
 if __name__ == "__main__":
     main(*sys.argv[1:])

@@ -10,7 +10,7 @@ import pandas as pd
 import datetime
 
 DEFAULT_RUN_SOLVER_KILL_DELAY = 10
-DEFAULT_SLURM_TIME_BUFFER = 15
+DEFAULT_TIME_BUFFER = 1
 DEFAULT_N_MEM_LINES = 4
 DEFAULT_N_CPUS = 24
 
@@ -65,9 +65,9 @@ def main(cobra_config, bench_config, configs_file, instances_file):
     else:
         runsolver_kill_delay = DEFAULT_RUN_SOLVER_KILL_DELAY
     if 'slurm_time_buffer' in bench_config:
-        slurm_time_buffer = bench_config['slurm_time_buffer']
+        time_buffer = bench_config['slurm_time_buffer']
     else:
-        slurm_time_buffer = DEFAULT_SLURM_TIME_BUFFER
+        time_buffer = DEFAULT_TIME_BUFFER
 
     cpus = int(math.ceil(request_cpu / (cpu_per_node / mem_lines)) * (cpu_per_node / mem_lines))
 
@@ -135,7 +135,7 @@ def main(cobra_config, bench_config, configs_file, instances_file):
                 if exec_path != None:
                     run =  f'{exec_path} {run}'
                     
-                cmd = f'{runsolver_path} -w {runsolver_log_path} -W {timeout} -V {mem_limit} -d {runsolver_kill_delay} {run} 2> {err_path} 1> {log_path}'
+                cmd = f'{runsolver_path} -w {runsolver_log_path} -W {timeout+time_buffer} -V {mem_limit} -d {runsolver_kill_delay} {run} 2> {err_path} 1> {log_path}'
 
                 with open(job_path, 'w') as file:
                     file.write('#!/bin/sh\n')
@@ -152,7 +152,7 @@ def main(cobra_config, bench_config, configs_file, instances_file):
         file.write('#!/bin/bash\n')
         file.write('#\n')
         file.write(f'#SBATCH --job-name={bench_name}\n')
-        file.write(f'#SBATCH --time={datetime.timedelta(seconds=timeout+slurm_time_buffer)}\n')
+        file.write(f'#SBATCH --time={datetime.timedelta(seconds=timeout+time_buffer)}\n')
         file.write(f'#SBATCH --cpus-per-task={cpus}\n')
         file.write(f'#SBATCH --mem-per-cpu={int(math.ceil(mem_limit/cpus))}\n')
         file.write(f'#SBATCH --output={bench_name}.log\n')

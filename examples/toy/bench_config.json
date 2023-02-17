@@ -1,9 +1,9 @@
 {
     "name" : "example_bench",
+    "configs" : "configs.txt",
+    "instances" : "instances.txt",
     "timeout" : 60,   
-    "runs" : 5,
     "mem_limit" : 25600,
     "request_cpus" : 1,
-    "timeout_factor" : 1000,
-    "initial_seed" : 1234
+    "runs" : 5
 }

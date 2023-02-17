@@ -18,11 +18,11 @@ INSTANCES = [
 ]
 
 data = []
-data += [ '../../../../../instances/General/' + i for i in INSTANCES ]
-data += [ '../../../../../instances/LabStructure/'+ i for i in INSTANCES ]
-data += [ '../../../../../instances/RealWorld/2019-04' ]
-data += [ '../../../../../instances/RealWorld/2019-07' ]
-data += [ '../../../../../instances/RealWorld/2019-10' ]
+data += [ '../instances/General/' + i for i in INSTANCES ]
+data += [ '../instances/LabStructure/'+ i for i in INSTANCES ]
+data += [ '../instances/RealWorld/2019-04' ]
+data += [ '../instances/RealWorld/2019-07' ]
+data += [ '../instances/RealWorld/2019-10' ]
 
 for d in data:
     args = []

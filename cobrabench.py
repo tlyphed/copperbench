@@ -13,8 +13,13 @@ DEFAULT_RUN_SOLVER_KILL_DELAY = 10
 DEFAULT_TIME_BUFFER = 1
 DEFAULT_N_MEM_LINES = 4
 DEFAULT_N_CPUS = 24
+DEFAULT_PARTITION = 'broadwell'
 
-def process_bench(bench_folder, log_read_func):
+def process_bench(bench_folder, log_read_func, metadata_file=None):
+    if metadata_file != None:
+        with open(metadata_file, 'r') as file:
+            metadata = json.loads(file.read())
+
     data = []
     for config_dir in os.scandir(bench_folder):
         if config_dir.name.startswith('config') and os.path.isdir(config_dir):
@@ -24,16 +29,23 @@ def process_bench(bench_folder, log_read_func):
                         if run_dir.name.startswith('run') and os.path.isdir(run_dir):
                             result = log_read_func(run_dir.path + '/stdout.log')
                             if result:
-                                result['config'] = config_dir.name
-                                result['instance'] = instance_dir.name
-                                result['run'] = run_dir.name
-                                data += [result]
+                                if metadata != None:
+                                    conf_name = metadata['configs'][config_dir.name]
+                                    inst_name = metadata['instances'][instance_dir.name]
+                                else:
+                                    conf_name = config_dir.name
+                                    inst_name = instance_dir.name
+                                entry = {}
+                                entry['config'] = conf_name
+                                entry['instance'] = inst_name
+                                entry['run'] = run_dir.name[3:]
+                                data += [entry | result]
 
     df = pd.DataFrame.from_dict(data)
     return df
 
 
-def main(cobra_config, bench_config, configs_file, instances_file):
+def main(cobra_config, bench_config):
 
     if 'runsolver_path' in cobra_config:
         runsolver_path = cobra_config['runsolver_path']
@@ -47,6 +59,10 @@ def main(cobra_config, bench_config, configs_file, instances_file):
         cpu_per_node = cobra_config['cpu_per_node']
     else:
         cpu_per_node = DEFAULT_N_CPUS 
+    if 'partition' in cobra_config:
+        partition = cobra_config['partition']
+    else:
+        partition = DEFAULT_PARTITION
 
     bench_name = bench_config['name']
     timeout = bench_config['timeout']
@@ -54,12 +70,10 @@ def main(cobra_config, bench_config, configs_file, instances_file):
         n_runs = bench_config['runs']
     else:
         n_runs = 1
+
     mem_limit = bench_config['mem_limit']
     request_cpu = bench_config['request_cpus']
-    if 'working_dir' in bench_config:
-        working_dir = bench_config['working_dir']
-    else:
-        working_dir = None
+    working_dir = os.path.abspath('.')
     if 'runsolver_kill_delay' in bench_config:
         runsolver_kill_delay = bench_config['runsolver_kill_delay']
     else:
@@ -68,6 +82,9 @@ def main(cobra_config, bench_config, configs_file, instances_file):
         time_buffer = bench_config['slurm_time_buffer']
     else:
         time_buffer = DEFAULT_TIME_BUFFER
+    
+    instances_file = bench_config['instances']
+    configs_file = bench_config['configs']
 
     cpus = int(math.ceil(request_cpu / (cpu_per_node / mem_lines)) * (cpu_per_node / mem_lines))
 
@@ -103,19 +120,19 @@ def main(cobra_config, bench_config, configs_file, instances_file):
                 i += 1
     
     os.mkdir(bench_name)
-    os.chdir(bench_name)
 
-    with open('instance_names.json', 'w') as file:
-        file.write(json.dumps(instances, indent=4))
-    with open('config_names.json', 'w') as file:
-        file.write(json.dumps(configs, indent=4))
+    with open(f'{bench_name}/metadata.json', 'w') as file:
+        metadata = {}
+        metadata['instances'] = instances
+        metadata['configs'] = configs
+        file.write(json.dumps(metadata, indent=4))
 
     counter = 0
     for config_name, config in configs.items():
         for instance_name, data in instances.items():
             for i in range(1, n_runs + 1):
 
-                log_folder = f'{config_name}/{instance_name}/run{i}/'
+                log_folder = f'{bench_name}/{config_name}/{instance_name}/run{i}/'
                 os.makedirs(log_folder)
 
                 job_file = 'job.sh'
@@ -139,8 +156,6 @@ def main(cobra_config, bench_config, configs_file, instances_file):
 
                 with open(job_path, 'w') as file:
                     file.write('#!/bin/sh\n')
-                    if working_dir != None:
-                        file.write(f'cd {working_dir}\n')
                     cmd = string.Template(cmd).substitute(timeout=timeout * timeout_factor, seed=random.randint(0,2**32), log_folder=log_folder)
                     file.write(cmd)
 
@@ -148,33 +163,35 @@ def main(cobra_config, bench_config, configs_file, instances_file):
                 os.chmod(job_path, st.st_mode | stat.S_IEXEC)
                 counter += 1
     
-    with open(f'{bench_name}.sbatch', 'w') as file:
+    with open(f'{bench_name}/sbatch.sh', 'w') as file:
         file.write('#!/bin/bash\n')
         file.write('#\n')
         file.write(f'#SBATCH --job-name={bench_name}\n')
         file.write(f'#SBATCH --time={datetime.timedelta(seconds=timeout+time_buffer)}\n')
+        file.write(f'#SBATCH --partition={partition}\n')
         file.write(f'#SBATCH --cpus-per-task={cpus}\n')
         file.write(f'#SBATCH --mem-per-cpu={int(math.ceil(mem_limit/cpus))}\n')
         file.write(f'#SBATCH --output={bench_name}.log\n')
         file.write(f'#SBATCH --error={bench_name}.log\n')
         file.write(f'#SBATCH --array=0-{counter - 1}\n')
         file.write('#SBATCH --ntasks=1\n\n')
-        file.write('FILES=(config*/instance*/run*/job.sh)\n\n')
+        file.write(f'cd {working_dir}\n\n')
+        file.write(f'FILES=({bench_name}/config*/instance*/run*/job.sh)\n\n')
         file.write('srun ${FILES[$SLURM_ARRAY_TASK_ID]}\n')
         
 if __name__ == "__main__":
-    if len(sys.argv) == 5:
-        cobra_config_file, bench_config_file, configs_file, instances_file = sys.argv[1:]
+    if len(sys.argv) == 3:
+        cobra_config_file, bench_config_file = sys.argv[1:]
         with open(cobra_config_file, 'r') as file:
             cobra_config = json.loads(file.read())
-    elif len(sys.argv) == 4:
-        bench_config_file, configs_file, instances_file = sys.argv[1:]
+    elif len(sys.argv) == 2:
+        bench_config_file = sys.argv[1:]
         cobra_config = {}
     else:
-        print("usage: cobrabench.py [cobra_config_file] <bench_config_file> <configs_file> <instances_file>")
+        print("usage: cobrabench.py [cobra_config_file] <bench_config_file>")
         sys.exit(1)
     
     with open(bench_config_file, 'r') as file:
         bench_config = json.loads(file.read())
 
-    main(cobra_config, bench_config, configs_file, instances_file)
+    main(cobra_config, bench_config)

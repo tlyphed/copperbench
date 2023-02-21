@@ -6,8 +6,8 @@ import random
 import math
 import json
 import sys
-import pandas as pd
 import datetime
+from typing import Dict, List, Optional, Callable, Any
 
 DEFAULT_RUN_SOLVER_KILL_DELAY = 10
 DEFAULT_TIME_BUFFER = 1
@@ -15,10 +15,13 @@ DEFAULT_N_MEM_LINES = 4
 DEFAULT_N_CPUS = 24
 DEFAULT_PARTITION = 'broadwell'
 
-def process_bench(bench_folder, log_read_func, metadata_file=None):
+def process_bench(bench_folder: str, log_read_func: Callable[[str], Optional[Dict[str, Any]]], 
+                  metadata_file: Optional[str] = None) -> List[Dict[str, Any]]:
     if metadata_file != None:
         with open(metadata_file, 'r') as file:
             metadata = json.loads(file.read())
+    else:
+        metadata = None
 
     data = []
     for config_dir in os.scandir(bench_folder):
@@ -41,38 +44,55 @@ def process_bench(bench_folder, log_read_func, metadata_file=None):
                                 entry['run'] = run_dir.name[3:]
                                 data += [entry | result]
 
-    df = pd.DataFrame.from_dict(data)
-    return df
+    return data
 
 
-def main(cobra_config, bench_config):
+def main(cobra_config : Dict[str, Any], bench_config : Dict[str, Any]) -> None:
 
     if 'runsolver_path' in cobra_config:
         runsolver_path = cobra_config['runsolver_path']
     else:
         runsolver_path = "runsolver"
+
     if 'mem_lines' in cobra_config:
         mem_lines = cobra_config['mem_lines']
     else:
         mem_lines = DEFAULT_N_MEM_LINES
+
     if 'cpu_per_node' in cobra_config:
         cpu_per_node = cobra_config['cpu_per_node']
     else:
         cpu_per_node = DEFAULT_N_CPUS 
+
     if 'partition' in cobra_config:
         partition = cobra_config['partition']
     else:
         partition = DEFAULT_PARTITION
 
-    bench_name = bench_config['name']
-    timeout = bench_config['timeout']
+    if 'name' in bench_config:
+        bench_name = bench_config['name']
+    else:
+        raise ValueError('bench config is missing required field "name"')
+    if 'timeout' in bench_config:
+        timeout = bench_config['timeout']
+    else:
+        raise ValueError('bench config is missing required field "timeout"')
+    
     if 'runs' in bench_config:
         n_runs = bench_config['runs']
     else:
         n_runs = 1
 
-    mem_limit = bench_config['mem_limit']
-    request_cpu = bench_config['request_cpus']
+    if 'mem_limit' in bench_config:
+        mem_limit = bench_config['mem_limit']
+    else:
+        raise ValueError('bench config is missing required field "mem_limit"')
+
+    if 'request_cpus' in bench_config:
+        request_cpu = bench_config['request_cpus']
+    else:
+        raise ValueError('bench config is missing required field "request_cpus"')
+
     working_dir = os.path.abspath('.')
     if 'runsolver_kill_delay' in bench_config:
         runsolver_kill_delay = bench_config['runsolver_kill_delay']
@@ -83,8 +103,15 @@ def main(cobra_config, bench_config):
     else:
         time_buffer = DEFAULT_TIME_BUFFER
     
-    instances_file = bench_config['instances']
-    configs_file = bench_config['configs']
+    if 'instances' in bench_config:
+        instances_file = bench_config['instances']
+    else:
+        raise ValueError('bench config is missing required field "instances"')
+
+    if 'configs' in bench_config:
+        configs_file = bench_config['configs']
+    else:
+        raise ValueError('bench config is missing required field "configs"')
 
     cpus = int(math.ceil(request_cpu / (cpu_per_node / mem_lines)) * (cpu_per_node / mem_lines))
 
@@ -163,7 +190,7 @@ def main(cobra_config, bench_config):
                 os.chmod(job_path, st.st_mode | stat.S_IEXEC)
                 counter += 1
     
-    with open(f'{bench_name}/sbatch.sh', 'w') as file:
+    with open(f'{bench_name}/batch_job.slurm', 'w') as file:
         file.write('#!/bin/bash\n')
         file.write('#\n')
         file.write(f'#SBATCH --job-name={bench_name}\n')
@@ -185,7 +212,7 @@ if __name__ == "__main__":
         with open(cobra_config_file, 'r') as file:
             cobra_config = json.loads(file.read())
     elif len(sys.argv) == 2:
-        bench_config_file = sys.argv[1:]
+        bench_config_file = sys.argv[1]
         cobra_config = {}
     else:
         print("usage: cobrabench.py [cobra_config_file] <bench_config_file>")

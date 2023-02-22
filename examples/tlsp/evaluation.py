@@ -2,6 +2,7 @@ import re
 import sys
 from typing import Dict, Optional
 import pandas as pd
+from pathlib import Path
 
 sys.path.append('/Users/tgeibing/Documents/git/cobrabench')
 from cobrabench import process_bench
@@ -12,7 +13,7 @@ regex_optimal = re.compile(r'found optimal solution')
 regex_penalties = re.compile(r"- Same employee: (?P<sameEmployee>\d+)\n\t- Project completion time: (?P<projectCompletionTime>\d+)\n\t- Preferred employees: (?P<preferredEmployees>\d+)\n\t- Job target date: (?P<targetDate>\d+)")
 
 
-def read_log(log_file: str) -> Optional[Dict[str, int]]:
+def read_log(log_file: Path) -> Optional[Dict[str, int]]:
     '''
     parse log and return what should be added to the dataframe as a dict or None for no entry
     '''
@@ -27,7 +28,7 @@ def read_log(log_file: str) -> Optional[Dict[str, int]]:
                 return { 'objective' : penatly, 'optimal' : opt }
 
 
-data = process_bench('bench_vlns', read_log)
+data = process_bench(Path('bench_vlns'), read_log)
 df = pd.DataFrame.from_records(data)
 df.to_csv('results_vlns.csv')
 

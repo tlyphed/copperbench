@@ -8,5 +8,6 @@
     "timeout" : 60,   
     "mem_limit" : 25600,
     "request_cpus" : 1,
-    "runs" : 5
+    "runs" : 5,
+    "working_dir": "."
 }

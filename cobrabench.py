@@ -8,32 +8,28 @@ import json
 import sys
 import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Callable, Any, TypedDict
+from typing import Dict, List, Any, Optional, Callable
+from dataclasses import dataclass
 
-DEFAULT_RUN_SOLVER_KILL_DELAY = 10
-DEFAULT_TIME_BUFFER = 1
-DEFAULT_N_MEM_LINES = 4
-DEFAULT_N_CPUS = 24
-DEFAULT_PARTITION = 'broadwell'
-
-class BenchConfig(TypedDict):
+@dataclass
+class BenchConfig:
     name: str
-    instances: str
-    configs: str
+    instances: Path
+    configs: Path
     timeout: int
     request_cpus: int
     mem_limit: int
-    runs: Optional[int]
-    executable: Optional[str]
-    working_dir: Optional[str]
-    runsolver_path: Optional[str]
-    runsolver_kill_delay: Optional[int]
-    slurm_time_buffer: Optional[int]
-    timeout_factor: Optional[int]
-    initial_seed: Optional[int]
-    partition: Optional[str]
-    cpu_per_node: Optional[int]
-    mem_lines: Optional[int]
+    runs: int = 1
+    executable: Optional[Path] = None
+    working_dir: Optional[Path] = None
+    runsolver_path: str = 'runsolver'
+    runsolver_kill_delay: int = 10
+    slurm_time_buffer: int = 1
+    timeout_factor: int = 1
+    initial_seed: Optional[int] = None
+    partition: str = 'broadwell'
+    cpu_per_node: int = 24
+    mem_lines: int = 4
 
 
 def process_bench(bench_folder: Path, log_read_func: Callable[[Path], Optional[Dict[str, Any]]], 
@@ -70,37 +66,18 @@ def process_bench(bench_folder: Path, log_read_func: Callable[[Path], Optional[D
 
 def main(bench_config : BenchConfig) -> None:
 
-    # required fields
-    bench_name = bench_config['name']
-    instances_file = bench_config['instances']
-    configs_file = bench_config['configs']
-    timeout = bench_config['timeout']
-    mem_limit = bench_config['mem_limit']
-    request_cpu = bench_config['request_cpus']
-
-    # optional fields
-    macro_default = lambda k,d : d if not k in bench_config else bench_config[k]
-    runsolver_path = macro_default('runsolver_path', 'runsolver')
-    mem_lines = macro_default('mem_lines', DEFAULT_N_MEM_LINES)
-    cpu_per_node = macro_default('cpu_per_node', DEFAULT_N_CPUS)
-    partition = macro_default('partition', DEFAULT_PARTITION)
-    n_runs = macro_default('runs', 1)
-    runsolver_kill_delay = macro_default('runsolver_kill_delay', DEFAULT_RUN_SOLVER_KILL_DELAY)
-    time_buffer = macro_default('slurm_time_buffer', DEFAULT_TIME_BUFFER)
-    exec_path = macro_default('executable', None)
-    timeout_factor = macro_default('timeout_factor', 1)
-
     working_dir = None
-    if 'working_dir' in bench_config:
-        working_dir = os.path.relpath(str(bench_config['working_dir']), start=Path.home())
+    if bench_config.working_dir != None:
+        working_dir = os.path.relpath(bench_config.working_dir, start=Path.home())
 
-    if 'initial_seed' in bench_config:
-        random.seed(bench_config['initial_seed'])
+    if bench_config.initial_seed != None:
+        random.seed(bench_config.initial_seed)
     
-    cpus = int(math.ceil(request_cpu / (cpu_per_node / mem_lines)) * (cpu_per_node / mem_lines))
+    cpus = int(math.ceil(bench_config.request_cpus / (bench_config.cpu_per_node / bench_config.mem_lines)) 
+                         * (bench_config.cpu_per_node / bench_config.mem_lines))
 
     instances = {}
-    with open(instances_file, 'r') as file:
+    with open(bench_config.instances, 'r') as file:
         i = 1
         for line in file:
             instance = line.strip()
@@ -109,7 +86,7 @@ def main(bench_config : BenchConfig) -> None:
                 i += 1
 
     configs = {}
-    with open(configs_file, 'r') as file:
+    with open(bench_config.configs, 'r') as file:
         i = 1
         for line in file:
             config = line.strip()
@@ -117,9 +94,9 @@ def main(bench_config : BenchConfig) -> None:
                 configs[f'config{i}'] = config
                 i += 1
     
-    os.mkdir(bench_name)
+    os.mkdir(bench_config.name)
 
-    with open(Path(bench_name, 'metadata.json'), 'w') as file:
+    with open(Path(bench_config.name, 'metadata.json'), 'w') as file:
         metadata = {}
         metadata['instances'] = instances
         metadata['configs'] = configs
@@ -128,9 +105,9 @@ def main(bench_config : BenchConfig) -> None:
     counter = 0
     for config_name, config in configs.items():
         for instance_name, data in instances.items():
-            for i in range(1, n_runs + 1):
+            for i in range(1, bench_config.runs + 1):
 
-                log_folder = Path(bench_name, config_name, instance_name, f'run{i}')
+                log_folder = Path(bench_config.name, config_name, instance_name, f'run{i}')
                 os.makedirs(log_folder)
 
                 job_file = 'start.sh'
@@ -138,10 +115,10 @@ def main(bench_config : BenchConfig) -> None:
 
                 run =  f'{config} {data}'
 
-                if exec_path != None:
-                    run =  f'{exec_path} {run}'
+                if bench_config.executable != None:
+                    run =  f'{bench_config.executable} {run}'
                     
-                cmd = f'{runsolver_path} -w runsolver.log -W {timeout+time_buffer} -V {mem_limit} -d {runsolver_kill_delay} {run} 2> stderr.log 1> stdout.log'
+                cmd = f'{bench_config.runsolver_path} -w runsolver.log -W {bench_config.timeout+bench_config.slurm_time_buffer} -V {bench_config.mem_limit} -d {bench_config.runsolver_kill_delay} {run} 2> stderr.log 1> stdout.log'
 
                 with open(job_path, 'w') as file:
                     file.write('#!/bin/sh\n\n')
@@ -153,7 +130,7 @@ def main(bench_config : BenchConfig) -> None:
                         file.write('# create symlinks for working directory\n')
                         file.write(f'ln -s ~/{working_dir}/* .\n')
                     file.write('# execute run\n')
-                    cmd = string.Template(cmd).substitute(timeout=timeout * timeout_factor, seed=random.randint(0,2**32))
+                    cmd = string.Template(cmd).substitute(timeout=bench_config.timeout * bench_config.timeout_factor, seed=random.randint(0,2**32))
                     file.write(cmd)
                     file.write('\n')
                     if working_dir != None:
@@ -164,16 +141,16 @@ def main(bench_config : BenchConfig) -> None:
                 os.chmod(job_path, st.st_mode | stat.S_IEXEC)
                 counter += 1
     
-    with open(Path(bench_name, 'batch_job.slurm'), 'w') as file:
+    with open(Path(bench_config.name, 'batch_job.slurm'), 'w') as file:
         file.write('#!/bin/bash\n')
         file.write('#\n')
-        file.write(f'#SBATCH --job-name={bench_name}\n')
-        file.write(f'#SBATCH --time={datetime.timedelta(seconds=timeout+time_buffer)}\n')
-        file.write(f'#SBATCH --partition={partition}\n')
+        file.write(f'#SBATCH --job-name={bench_config.name}\n')
+        file.write(f'#SBATCH --time={datetime.timedelta(seconds=bench_config.timeout+bench_config.slurm_time_buffer)}\n')
+        file.write(f'#SBATCH --partition={bench_config.partition}\n')
         file.write(f'#SBATCH --cpus-per-task={cpus}\n')
-        file.write(f'#SBATCH --mem-per-cpu={int(math.ceil(mem_limit/cpus))}\n')
-        file.write(f'#SBATCH --output={bench_name}.log\n')
-        file.write(f'#SBATCH --error={bench_name}.log\n')
+        file.write(f'#SBATCH --mem-per-cpu={int(math.ceil(bench_config.mem_limit/cpus))}\n')
+        file.write(f'#SBATCH --output={bench_config.name}.log\n')
+        file.write(f'#SBATCH --error={bench_config.name}.log\n')
         file.write(f'#SBATCH --array=0-{counter - 1}\n')
         file.write('#SBATCH --ntasks=1\n\n')
         file.write(f'cd ~/{os.path.relpath(os.curdir, start=Path.home())}\n')
@@ -188,6 +165,6 @@ if __name__ == "__main__":
         sys.exit(1)
     
     with open(bench_config_file, 'r') as file:
-        bench_config : BenchConfig = json.loads(file.read())
+        bench_config = BenchConfig(**json.loads(file.read()))
 
     main(bench_config)

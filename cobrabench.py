@@ -153,7 +153,7 @@ def main(bench_config : BenchConfig) -> None:
         file.write(f'#SBATCH --error={bench_config.name}.log\n')
         file.write(f'#SBATCH --array=0-{counter - 1}\n')
         file.write('#SBATCH --ntasks=1\n\n')
-        file.write(f'cd ~/{os.path.relpath(os.curdir, start=Path.home())}\n')
+        file.write(f'cd ~/{os.path.relpath(Path(bench_config.name), start=Path.home())}\n')
         file.write(f'FILES=(config*/instance*/run*/start.sh)\n\n')
         file.write('srun ${FILES[$SLURM_ARRAY_TASK_ID]}\n')
         

@@ -7,6 +7,7 @@ import math
 import json
 import sys
 import datetime
+from pathlib import Path
 from typing import Dict, List, Optional, Callable, Any
 
 DEFAULT_RUN_SOLVER_KILL_DELAY = 10
@@ -15,7 +16,7 @@ DEFAULT_N_MEM_LINES = 4
 DEFAULT_N_CPUS = 24
 DEFAULT_PARTITION = 'broadwell'
 
-def process_bench(bench_folder: str, log_read_func: Callable[[str], Optional[Dict[str, Any]]], 
+def process_bench(bench_folder: Path, log_read_func: Callable[[Path], Optional[Dict[str, Any]]], 
                   metadata_file: Optional[str] = None) -> List[Dict[str, Any]]:
     if metadata_file != None:
         with open(metadata_file, 'r') as file:
@@ -30,7 +31,7 @@ def process_bench(bench_folder: str, log_read_func: Callable[[str], Optional[Dic
                 if instance_dir.name.startswith('instance') and os.path.isdir(instance_dir):
                     for run_dir in os.scandir(instance_dir):
                         if run_dir.name.startswith('run') and os.path.isdir(run_dir):
-                            result = log_read_func(run_dir.path + '/stdout.log')
+                            result = log_read_func(Path(run_dir, 'stdout.log'))
                             if result:
                                 if metadata != None:
                                     conf_name = metadata['configs'][config_dir.name]
@@ -47,7 +48,7 @@ def process_bench(bench_folder: str, log_read_func: Callable[[str], Optional[Dic
     return data
 
 
-def main(cobra_config : Dict[str, Any], bench_config : Dict[str, Any]) -> None:
+def main(cobra_config : Dict[str, str | int], bench_config : Dict[str, str | int]) -> None:
 
     if 'runsolver_path' in cobra_config:
         runsolver_path = cobra_config['runsolver_path']
@@ -55,12 +56,12 @@ def main(cobra_config : Dict[str, Any], bench_config : Dict[str, Any]) -> None:
         runsolver_path = "runsolver"
 
     if 'mem_lines' in cobra_config:
-        mem_lines = cobra_config['mem_lines']
+        mem_lines = int(cobra_config['mem_lines'])
     else:
         mem_lines = DEFAULT_N_MEM_LINES
 
     if 'cpu_per_node' in cobra_config:
-        cpu_per_node = cobra_config['cpu_per_node']
+        cpu_per_node = int(cobra_config['cpu_per_node'])
     else:
         cpu_per_node = DEFAULT_N_CPUS 
 
@@ -70,26 +71,26 @@ def main(cobra_config : Dict[str, Any], bench_config : Dict[str, Any]) -> None:
         partition = DEFAULT_PARTITION
 
     if 'name' in bench_config:
-        bench_name = bench_config['name']
+        bench_name = str(bench_config['name'])
     else:
         raise ValueError('bench config is missing required field "name"')
     if 'timeout' in bench_config:
-        timeout = bench_config['timeout']
+        timeout = int(bench_config['timeout'])
     else:
         raise ValueError('bench config is missing required field "timeout"')
     
     if 'runs' in bench_config:
-        n_runs = bench_config['runs']
+        n_runs = int(bench_config['runs'])
     else:
         n_runs = 1
 
     if 'mem_limit' in bench_config:
-        mem_limit = bench_config['mem_limit']
+        mem_limit = int(bench_config['mem_limit'])
     else:
         raise ValueError('bench config is missing required field "mem_limit"')
 
     if 'request_cpus' in bench_config:
-        request_cpu = bench_config['request_cpus']
+        request_cpu = int(bench_config['request_cpus'])
     else:
         raise ValueError('bench config is missing required field "request_cpus"')
 
@@ -99,7 +100,7 @@ def main(cobra_config : Dict[str, Any], bench_config : Dict[str, Any]) -> None:
     else:
         runsolver_kill_delay = DEFAULT_RUN_SOLVER_KILL_DELAY
     if 'slurm_time_buffer' in bench_config:
-        time_buffer = bench_config['slurm_time_buffer']
+        time_buffer = int(bench_config['slurm_time_buffer'])
     else:
         time_buffer = DEFAULT_TIME_BUFFER
     
@@ -148,7 +149,7 @@ def main(cobra_config : Dict[str, Any], bench_config : Dict[str, Any]) -> None:
     
     os.mkdir(bench_name)
 
-    with open(f'{bench_name}/metadata.json', 'w') as file:
+    with open(Path(bench_name, 'metadata.json'), 'w') as file:
         metadata = {}
         metadata['instances'] = instances
         metadata['configs'] = configs
@@ -159,32 +160,31 @@ def main(cobra_config : Dict[str, Any], bench_config : Dict[str, Any]) -> None:
         for instance_name, data in instances.items():
             for i in range(1, n_runs + 1):
 
-                log_folder = f'{bench_name}/{config_name}/{instance_name}/run{i}/'
+                log_folder = Path(bench_name, config_name, instance_name, f'run{i}')
                 os.makedirs(log_folder)
 
-                job_file = 'job.sh'
-                job_path = log_folder + job_file
-
-                log_file = 'stdout.log'
-                log_path = log_folder + log_file
-
-                err_file = 'stderr.log' 
-                err_path = log_folder + err_file
-
-                runsolver_log = 'runsolver.log'
-                runsolver_log_path = log_folder + runsolver_log
+                job_file = 'start.sh'
+                job_path = log_folder / job_file
 
                 run =  f'{config} {data}'
 
                 if exec_path != None:
                     run =  f'{exec_path} {run}'
                     
-                cmd = f'{runsolver_path} -w {runsolver_log_path} -W {timeout+time_buffer} -V {mem_limit} -d {runsolver_kill_delay} {run} 2> {err_path} 1> {log_path}'
+                cmd = f'{runsolver_path} -w runsolver.log -W {timeout+time_buffer} -V {mem_limit} -d {runsolver_kill_delay} {run} 2> stderr.log 1> stdout.log'
 
                 with open(job_path, 'w') as file:
-                    file.write('#!/bin/sh\n')
-                    cmd = string.Template(cmd).substitute(timeout=timeout * timeout_factor, seed=random.randint(0,2**32), log_folder=log_folder)
+                    file.write('#!/bin/sh\n\n')
+                    file.write('# change into job directory\n')
+                    file.write(f'cd {log_folder}\n')
+                    file.write('# create symlinks for working directory\n')
+                    file.write(f'ln -s {working_dir}/* .\n\n')
+                    file.write('# execute run\n')
+                    cmd = string.Template(cmd).substitute(timeout=timeout * timeout_factor, seed=random.randint(0,2**32))
                     file.write(cmd)
+                    file.write('\n\n')
+                    file.write('# cleanup symlinks\n')
+                    file.write('find . -type l -delete\n')
 
                 st = os.stat(job_path)
                 os.chmod(job_path, st.st_mode | stat.S_IEXEC)
@@ -202,8 +202,8 @@ def main(cobra_config : Dict[str, Any], bench_config : Dict[str, Any]) -> None:
         file.write(f'#SBATCH --error={bench_name}.log\n')
         file.write(f'#SBATCH --array=0-{counter - 1}\n')
         file.write('#SBATCH --ntasks=1\n\n')
-        file.write(f'cd {working_dir}\n\n')
-        file.write(f'FILES=({bench_name}/config*/instance*/run*/job.sh)\n\n')
+        file.write('cd "${0%/*}"\n\n')
+        file.write(f'FILES=(./config*/instance*/run*/start.sh)\n\n')
         file.write('srun ${FILES[$SLURM_ARRAY_TASK_ID]}\n')
         
 if __name__ == "__main__":

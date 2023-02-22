@@ -51,7 +51,7 @@ def process_bench(bench_folder: Path, log_read_func: Callable[[Path], Optional[D
 def main(cobra_config : Dict[str, str | int], bench_config : Dict[str, str | int]) -> None:
 
     if 'runsolver_path' in cobra_config:
-        runsolver_path = cobra_config['runsolver_path']
+        runsolver_path = str(cobra_config['runsolver_path'])
     else:
         runsolver_path = "runsolver"
 
@@ -94,7 +94,10 @@ def main(cobra_config : Dict[str, str | int], bench_config : Dict[str, str | int
     else:
         raise ValueError('bench config is missing required field "request_cpus"')
 
-    working_dir = os.path.abspath('.')
+    working_dir = None
+    if 'working_dir' in bench_config:
+        working_dir = os.path.relpath(str(bench_config['working_dir']), start=Path.home())
+
     if 'runsolver_kill_delay' in bench_config:
         runsolver_kill_delay = bench_config['runsolver_kill_delay']
     else:
@@ -176,15 +179,19 @@ def main(cobra_config : Dict[str, str | int], bench_config : Dict[str, str | int
                 with open(job_path, 'w') as file:
                     file.write('#!/bin/sh\n\n')
                     file.write('# change into job directory\n')
-                    file.write(f'cd {log_folder}\n')
-                    file.write('# create symlinks for working directory\n')
-                    file.write(f'ln -s {working_dir}/* .\n\n')
+                    file.write(f'cd ~/{os.path.relpath(log_folder, start=Path.home())}\n')
+                    if working_dir != None:
+                        file.write('# create log files (so that symlinks cannot interfere)\n')
+                        file.write('touch runsolver.log stdout.log stderr.log\n')
+                        file.write('# create symlinks for working directory\n')
+                        file.write(f'ln -s ~/{working_dir}/* .\n')
                     file.write('# execute run\n')
                     cmd = string.Template(cmd).substitute(timeout=timeout * timeout_factor, seed=random.randint(0,2**32))
                     file.write(cmd)
-                    file.write('\n\n')
-                    file.write('# cleanup symlinks\n')
-                    file.write('find . -type l -delete\n')
+                    file.write('\n')
+                    if working_dir != None:
+                        file.write('# cleanup symlinks\n')
+                        file.write('find . -type l -delete\n')
 
                 st = os.stat(job_path)
                 os.chmod(job_path, st.st_mode | stat.S_IEXEC)
@@ -202,8 +209,7 @@ def main(cobra_config : Dict[str, str | int], bench_config : Dict[str, str | int
         file.write(f'#SBATCH --error={bench_name}.log\n')
         file.write(f'#SBATCH --array=0-{counter - 1}\n')
         file.write('#SBATCH --ntasks=1\n\n')
-        file.write('cd "${0%/*}"\n\n')
-        file.write(f'FILES=(./config*/instance*/run*/start.sh)\n\n')
+        file.write(f'FILES=(config*/instance*/run*/start.sh)\n\n')
         file.write('srun ${FILES[$SLURM_ARRAY_TASK_ID]}\n')
         
 if __name__ == "__main__":

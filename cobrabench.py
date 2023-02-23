@@ -79,7 +79,16 @@ def process_bench_regex(bench_folder: Union[Path, str], regex: Pattern,
     return process_bench(bench_folder, read_log, metadata_file)
 
 
-def main(bench_config : BenchConfig) -> None:
+def main(args) -> None:
+
+    if len(args) == 2:
+        bench_config_file = args[1]
+    else:
+        print(f"usage: python {args[0]} <bench_config_file>")
+        sys.exit(1)
+    
+    with open(bench_config_file, 'r') as file:
+        bench_config = BenchConfig(**json.loads(file.read()))
 
     working_dir = None
     if bench_config.working_dir != None:
@@ -172,14 +181,6 @@ def main(bench_config : BenchConfig) -> None:
         file.write(f'FILES=(config*/instance*/run*/start.sh)\n\n')
         file.write('srun ${FILES[$SLURM_ARRAY_TASK_ID]}\n')
         
-if __name__ == "__main__":
-    if len(sys.argv) == 2:
-        bench_config_file = sys.argv[1]
-    else:
-        print(f"usage: python {sys.argv[0]} <bench_config_file>")
-        sys.exit(1)
-    
-    with open(bench_config_file, 'r') as file:
-        bench_config = BenchConfig(**json.loads(file.read()))
 
-    main(bench_config)
+if __name__ == "__main__":
+    main(sys.argv)

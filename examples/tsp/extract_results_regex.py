@@ -7,7 +7,7 @@ import pandas as pd
 sys.path.append('/Users/tgeibing/Documents/git/cobrabench')
 from cobrabench import process_bench_regex
 
-regex_cost = re.compile(r"(?s:.*)((Optimization: )|(Cost: ))(?P<cost>\d+)(?!.*\1)")
+regex_cost = re.compile(r"(?s:.*)((Optimization: )|(Cost: ))(?P<cost>\d+)")
 
 alaspo_data = process_bench_regex('bench_alaspo', regex_cost, metadata_file='names_alaspo.json')
 clingo_data = process_bench_regex('bench_clingo', regex_cost, metadata_file='names_clingo.json')

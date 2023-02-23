@@ -7,7 +7,7 @@ import pandas as pd
 sys.path.append('/Users/tgeibing/Documents/git/cobrabench')
 from cobrabench import process_bench
 
-regex_cost = re.compile(r"(?s:.*)((Optimization: )|(Cost: ))(?P<cost>\d+)(?!.*\1)")
+regex_cost = re.compile(r"(?s:.*)((Optimization: )|(Cost: ))(?P<cost>\d+)")
 
 def read_log(log_file):
     with open(log_file, 'r') as file:

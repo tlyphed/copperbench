@@ -8,5 +8,6 @@
     "mem_limit" : 25600,
     "request_cpus" : 1,
     "timeout_factor" : 1000,
-    "initial_seed" : 304958209785
+    "initial_seed" : 304958209785,
+    "working_dir" : "."
 }

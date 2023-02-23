@@ -4,7 +4,6 @@ import string
 import random
 import math
 import json
-import sys
 import datetime
 from pathlib import Path
 from typing import Optional

@@ -1,0 +1,11 @@
+{
+    "name" : "bench_alaspo",
+    "executable" :  "~/miniconda3/envs/alaspo/bin/python -m alaspo",
+    "timeout" : 300,   
+    "runs" : 3,
+    "mem_limit" : 20480,
+    "request_cpus" : 1,
+    "configs" : "configs_alaspo.txt",
+    "instances" : "instances.txt",
+    "working_dir" : "."
+}

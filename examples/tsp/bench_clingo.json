@@ -1,0 +1,11 @@
+{
+    "name" : "bench_clingo",
+    "executable" :  "~/miniconda3/envs/alaspo/bin/clingo",
+    "timeout" : 300,   
+    "runs" : 1,
+    "mem_limit" : 20480,
+    "request_cpus" : 1,
+    "configs" : "configs_clingo.txt",
+    "instances" : "instances.txt",
+    "working_dir" : "."
+}

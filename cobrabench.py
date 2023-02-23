@@ -8,7 +8,7 @@ import json
 import sys
 import datetime
 from pathlib import Path
-from typing import Dict, List, Any, Optional, Callable
+from typing import Dict, List, Any, Optional, Callable, Union
 from dataclasses import dataclass
 
 @dataclass
@@ -32,9 +32,11 @@ class BenchConfig:
     mem_lines: int = 4
 
 
-def process_bench(bench_folder: Path, log_read_func: Callable[[Path], Optional[Dict[str, Any]]], 
-                  metadata_file: Optional[str] = None) -> List[Dict[str, Any]]:
+def process_bench(bench_folder: Union[Path, str], log_read_func: Callable[[Path], Optional[Dict[str, Any]]], 
+                  metadata_file: Optional[Union[Path, str]] = None) -> List[Dict[str, Any]]:
+    bench_folder = Path(bench_folder)
     if metadata_file != None:
+        metadata_file = Path(metadata_file)
         with open(metadata_file, 'r') as file:
             metadata = json.loads(file.read())
     else:
@@ -161,7 +163,7 @@ if __name__ == "__main__":
     if len(sys.argv) == 2:
         bench_config_file = sys.argv[1]
     else:
-        print("usage: cobrabench.py <bench_config_file>")
+        print(f"usage: python {sys.argv[0]} <bench_config_file>")
         sys.exit(1)
     
     with open(bench_config_file, 'r') as file:

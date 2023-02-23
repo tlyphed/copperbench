@@ -1,4 +1,3 @@
-
 import os
 import stat
 import string
@@ -8,9 +7,11 @@ import json
 import sys
 import datetime
 from pathlib import Path
-from typing import Dict, List, Any, Optional, Callable, Union
+from typing import Optional
 from dataclasses import dataclass
-from re import Pattern
+import argparse
+from .__version__ import __version__
+
 
 @dataclass
 class BenchConfig:
@@ -33,61 +34,13 @@ class BenchConfig:
     mem_lines: int = 4
 
 
-def process_bench(bench_folder: Union[Path, str], log_read_func: Callable[[Path], Optional[Dict[str, Any]]], 
-                  metadata_file: Optional[Union[Path, str]] = None) -> List[Dict[str, Any]]:
-    bench_folder = Path(bench_folder)
-    if metadata_file != None:
-        metadata_file = Path(metadata_file)
-        with open(metadata_file, 'r') as file:
-            metadata = json.loads(file.read())
-    else:
-        metadata = None
-
-    data = []
-    for config_dir in os.scandir(bench_folder):
-        if config_dir.name.startswith('config') and os.path.isdir(config_dir):
-            for instance_dir in os.scandir(config_dir):
-                if instance_dir.name.startswith('instance') and os.path.isdir(instance_dir):
-                    for run_dir in os.scandir(instance_dir):
-                        if run_dir.name.startswith('run') and os.path.isdir(run_dir):
-                            result = log_read_func(Path(run_dir, 'stdout.log'))
-                            if result:
-                                if metadata != None:
-                                    conf_name = metadata['configs'][config_dir.name]
-                                    inst_name = metadata['instances'][instance_dir.name]
-                                else:
-                                    conf_name = config_dir.name
-                                    inst_name = instance_dir.name
-                                entry = {}
-                                entry['config'] = conf_name
-                                entry['instance'] = inst_name
-                                entry['run'] = run_dir.name[3:]
-                                data += [entry | result]
-
-    return data
-
-
-def process_bench_regex(bench_folder: Union[Path, str], regex: Pattern, 
-                  metadata_file: Optional[Union[Path, str]] = None) -> List[Dict[str, Any]]:
-
-    def read_log(log_file):
-        with open(log_file, 'r') as file:
-            match = regex.match(file.read())
-            if match != None:
-                return match.groupdict()
-
-    return process_bench(bench_folder, read_log, metadata_file)
-
-
-def main(args) -> None:
-
-    if len(args) == 2:
-        bench_config_file = args[1]
-    else:
-        print(f"usage: python {args[0]} <bench_config_file>")
-        sys.exit(1)
+def main() -> None:
     
-    with open(bench_config_file, 'r') as file:
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter,description=f'copperbench (version {__version__})')
+    parser.add_argument('bench_config_file') 
+    args = parser.parse_args() 
+
+    with open(args.bench_config_file, 'r') as file:
         bench_config = BenchConfig(**json.loads(file.read()))
 
     working_dir = None
@@ -182,5 +135,3 @@ def main(args) -> None:
         file.write('srun ${FILES[$SLURM_ARRAY_TASK_ID]}\n')
         
 
-if __name__ == "__main__":
-    main(sys.argv)

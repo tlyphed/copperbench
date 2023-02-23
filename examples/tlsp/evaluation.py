@@ -4,8 +4,9 @@ from typing import Dict, Optional
 import pandas as pd
 from pathlib import Path
 
-sys.path.append('/Users/tgeibing/Documents/git/cobrabench')
-from cobrabench import process_bench
+## uncomment and fill in correct if copperbench is not installed as a module:
+# sys.path.append('/Users/tgeibing/Documents/git/cobrabench/')
+from copperbench import postprocess
 
 
 regex_results = re.compile(r'Total result: \n\t- Hard conflicts: (?P<conflicts>\d+)\n\t- Soft penalties: (?P<penalty>\d+)')
@@ -28,7 +29,7 @@ def read_log(log_file: Path) -> Optional[Dict[str, int]]:
                 return { 'objective' : penatly, 'optimal' : opt }
 
 
-data = process_bench('bench_vlns', read_log)
+data = postprocess.process_bench('bench_vlns', read_log)
 df = pd.DataFrame.from_records(data)
 df.to_csv('results_vlns.csv')
 

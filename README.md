@@ -1,10 +1,16 @@
-# cobrabench
+# copperbench
 
 Lightweight tool to create reproducible benchmarks for copperhead.
 
-Example usage:
+You can either use it as a script:
 ```
-python cobrabench.py examples/toy/bench_config.json
+python copperbench.py <bench_config_file>
+```
+
+or install it as a python module:
+```
+python -m pip install .
+copperbench <bench_config_file>
 ```
 
 The only argument `bench_config.json` contains parameters specific to the current benchmark like the executable that should be run. Required fields are `name`, `configs`, `instances`, `timeout`, `mem_limit` and `request_cpus`. The `configs` and `instances` parameter take txt files as values which contain the args and, respectively, the instances to be tested. Each config is run for every instance (the respective lines are concatenated). Optionally, an `executable` can be specified which is prepended to every config-instance pair. 
@@ -13,7 +19,7 @@ There are two meta-arguments which can be used in the config files. Namely, `$se
 
 Advanced optional fields are the number of cores on each node, the location of runsolver, the number of memory lines and the slurm partition to be used. The tool tries to ensure that each job always gets the memory lines exclusely, which in practice means that each job is always scheduled on at least 6 cores and the number of requested cores is always a multiple of 6 (cpus / mem lines = 24 / 4 = 6). 
 
-cobrabench then creates the following folder structure and files:
+copperbench then creates the following folder structure and files:
 ```
 [benchmark name]
 |__config1

@@ -1,8 +1,9 @@
 import sys
 import pandas as pd
 
-sys.path.append('/Users/tgeibing/Documents/git/cobrabench')
-from cobrabench import process_bench
+## uncomment and fill in correct if copperbench is not installed as a module:
+# sys.path.append('/Users/tgeibing/Documents/git/cobrabench/')
+from copperbench import postprocess
 
 def read_log(log_file):
     '''
@@ -12,7 +13,7 @@ def read_log(log_file):
     '''
 
 
-data = process_bench('example_bench', read_log)
+data = postprocess.process_bench('example_bench', read_log)
 df = pd.DataFrame.from_records(data)
 df.to_csv('results.csv')
 

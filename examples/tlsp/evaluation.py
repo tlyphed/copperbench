@@ -1,10 +1,10 @@
 import re
-import sys
 from typing import Dict, Optional
 import pandas as pd
 from pathlib import Path
 
 ## uncomment and fill in correct if copperbench is not installed as a module:
+# import sys
 # sys.path.append('/Users/tgeibing/Documents/git/cobrabench/')
 from copperbench import postprocess
 

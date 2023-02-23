@@ -10,6 +10,7 @@ import datetime
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Callable, Union
 from dataclasses import dataclass
+from re import Pattern
 
 @dataclass
 class BenchConfig:
@@ -64,6 +65,18 @@ def process_bench(bench_folder: Union[Path, str], log_read_func: Callable[[Path]
                                 data += [entry | result]
 
     return data
+
+
+def process_bench_regex(bench_folder: Union[Path, str], regex: Pattern, 
+                  metadata_file: Optional[Union[Path, str]] = None) -> List[Dict[str, Any]]:
+
+    def read_log(log_file):
+        with open(log_file, 'r') as file:
+            match = regex.match(file.read())
+            if match != None:
+                return match.groupdict()
+
+    return process_bench(bench_folder, read_log, metadata_file)
 
 
 def main(bench_config : BenchConfig) -> None:

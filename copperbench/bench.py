@@ -35,7 +35,8 @@ class BenchConfig:
 
 def main() -> None:
     
-    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter,description=f'copperbench (version {__version__})')
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+                                     description=f'copperbench (version {__version__})')
     parser.add_argument('bench_config_file') 
     args = parser.parse_args() 
 

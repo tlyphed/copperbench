@@ -134,4 +134,13 @@ def main() -> None:
         file.write(f'FILES=(config*/instance*/run*/start.sh)\n\n')
         file.write('srun ${FILES[$SLURM_ARRAY_TASK_ID]}\n')
         
+    submit_sh_path = Path(bench_config.name, 'submit_all.sh')
+    with open(submit_sh_path, 'w') as file:
+        file.write('#!/bin/bash\n')
+        file.write('#\n')
+        file.write(f'cd ~/{os.path.relpath(Path(bench_config.name), start=Path.home())}\n')
+        file.write(f'jid=$(sbatch batch_job.slurm')
+        file.write('cd ..')
+        file.write(f'sbatch --dependency=afterok:${{jid}} tar czf {bench_config.name}.tar.gz {bench_config.name}')
 
+    os.chmod(submit_sh_path, st.st_mode | stat.S_IEXEC)

@@ -145,7 +145,7 @@ def main() -> None:
         file.write('#SBATCH --ntasks=1\n\n')
         file.write(f'cd ~/{os.path.relpath(Path(bench_config.name), start=Path.home())}\n')
         file.write('cd ..\n')
-        file.write(f'srun --dependency=afterok:${{jid}} tar czf {bench_config.name}.tar.gz {bench_config.name}\n')
+        file.write(f'srun tar czf {bench_config.name}.tar.gz {bench_config.name}\n')
 
     submit_sh_path = Path(bench_config.name, 'submit_all.sh')
     with open(submit_sh_path, 'w') as file:

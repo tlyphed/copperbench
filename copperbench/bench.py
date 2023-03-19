@@ -152,7 +152,7 @@ def main() -> None:
         file.write('#!/bin/bash\n')
         file.write('#\n')
         file.write(f'cd ~/{os.path.relpath(Path(bench_config.name), start=Path.home())}\n')
-        file.write(f'jid=$(sbatch batch_job.slurm)\n')
+        file.write(f'jid=$(sbatch --parsable batch_job.slurm)\n')
         file.write('cd ..\n')
         file.write(f'sbatch --dependency=afterok:${{jid}} compress_results.slurm')
 

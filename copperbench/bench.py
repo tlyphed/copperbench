@@ -133,14 +133,27 @@ def main() -> None:
         file.write(f'cd ~/{os.path.relpath(Path(bench_config.name), start=Path.home())}\n')
         file.write(f'FILES=(config*/instance*/run*/start.sh)\n\n')
         file.write('srun ${FILES[$SLURM_ARRAY_TASK_ID]}\n')
-        
+
+    with open(Path(bench_config.name, 'compress_results.slurm'), 'w') as file:
+        file.write('#!/bin/bash\n')
+        file.write('#\n')
+        file.write(f'#SBATCH --job-name={bench_config.name}_compress\n')
+        file.write(f'#SBATCH --partition={bench_config.partition}\n')
+        file.write(f'#SBATCH --cpus-per-task={bench_config.cpu_per_node / bench_config.mem_lines}\n')
+        file.write(f'#SBATCH --output={bench_config.name}.log\n')
+        file.write(f'#SBATCH --error={bench_config.name}.log\n')
+        file.write('#SBATCH --ntasks=1\n\n')
+        file.write(f'cd ~/{os.path.relpath(Path(bench_config.name), start=Path.home())}\n')
+        file.write('cd ..\n')
+        file.write(f'srun --dependency=afterok:${{jid}} tar czf {bench_config.name}.tar.gz {bench_config.name}\n')
+
     submit_sh_path = Path(bench_config.name, 'submit_all.sh')
     with open(submit_sh_path, 'w') as file:
         file.write('#!/bin/bash\n')
         file.write('#\n')
         file.write(f'cd ~/{os.path.relpath(Path(bench_config.name), start=Path.home())}\n')
-        file.write(f'jid=$(sbatch batch_job.slurm')
-        file.write('cd ..')
-        file.write(f'sbatch --dependency=afterok:${{jid}} tar czf {bench_config.name}.tar.gz {bench_config.name}')
+        file.write(f'jid=$(sbatch batch_job.slurm)\n')
+        file.write('cd ..\n')
+        file.write(f'sbatch --dependency=afterok:${{jid}} compress_results.slurm')
 
     os.chmod(submit_sh_path, st.st_mode | stat.S_IEXEC)

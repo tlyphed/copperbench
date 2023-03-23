@@ -129,8 +129,8 @@ def main() -> None:
         file.write(f'#SBATCH --partition={bench_config.partition}\n')
         file.write(f'#SBATCH --cpus-per-task={cpus}\n')
         file.write(f'#SBATCH --mem-per-cpu={int(math.ceil(bench_config.mem_limit/cpus))}\n')
-        file.write(f'#SBATCH --output=~/{bench_path}/slurm.log\n')
-        file.write(f'#SBATCH --error=~/{bench_path}/slurm.log\n')
+        file.write(f'#SBATCH --output=/dev/null\n')
+        file.write(f'#SBATCH --error=/dev/null\n')
         file.write(f'#SBATCH --array=0-{counter - 1}\n')
         if bench_config.exclusive:
             file.write(f"#SBATCH --exclusive=user\n")

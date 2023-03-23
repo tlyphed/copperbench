@@ -31,6 +31,7 @@ class BenchConfig:
     partition: str = 'broadwell'
     cpu_per_node: int = 24
     mem_lines: int = 4
+    exclusive: bool = False
 
 
 def main() -> None:
@@ -118,6 +119,8 @@ def main() -> None:
                 os.chmod(job_path, st.st_mode | stat.S_IEXEC)
                 counter += 1
     
+    bench_path = os.path.relpath(Path(bench_config.name), start=Path.home())
+
     with open(Path(bench_config.name, 'batch_job.slurm'), 'w') as file:
         file.write('#!/bin/bash\n')
         file.write('#\n')
@@ -126,11 +129,13 @@ def main() -> None:
         file.write(f'#SBATCH --partition={bench_config.partition}\n')
         file.write(f'#SBATCH --cpus-per-task={cpus}\n')
         file.write(f'#SBATCH --mem-per-cpu={int(math.ceil(bench_config.mem_limit/cpus))}\n')
-        file.write(f'#SBATCH --output={bench_config.name}.log\n')
-        file.write(f'#SBATCH --error={bench_config.name}.log\n')
+        file.write(f'#SBATCH --output={bench_path}/slurm.log\n')
+        file.write(f'#SBATCH --error={bench_path}/slurm.log\n')
         file.write(f'#SBATCH --array=0-{counter - 1}\n')
+        if bench_config.exclusive:
+            file.write(f"#SBATCH --exclusive=user\n")
         file.write('#SBATCH --ntasks=1\n\n')
-        file.write(f'cd ~/{os.path.relpath(Path(bench_config.name), start=Path.home())}\n')
+        file.write(f'cd ~/{bench_path}\n')
         file.write(f'FILES=(config*/instance*/run*/start.sh)\n\n')
         file.write('srun ${FILES[$SLURM_ARRAY_TASK_ID]}\n')
 
@@ -140,10 +145,10 @@ def main() -> None:
         file.write(f'#SBATCH --job-name={bench_config.name}_compress\n')
         file.write(f'#SBATCH --partition={bench_config.partition}\n')
         file.write(f'#SBATCH --cpus-per-task={bench_config.cpu_per_node / bench_config.mem_lines}\n')
-        file.write(f'#SBATCH --output={bench_config.name}.log\n')
-        file.write(f'#SBATCH --error={bench_config.name}.log\n')
+        file.write(f'#SBATCH --output={bench_path}/slurm.log\n')
+        file.write(f'#SBATCH --error={bench_path}/slurm.log\n')
         file.write('#SBATCH --ntasks=1\n\n')
-        file.write(f'cd ~/{os.path.relpath(Path(bench_config.name), start=Path.home())}\n')
+        file.write(f'cd ~/{bench_path}\n')
         file.write('cd ..\n')
         file.write(f'srun tar czf {bench_config.name}.tar.gz {bench_config.name}\n')
 

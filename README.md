@@ -37,9 +37,12 @@ copperbench then creates the following folder structure and files:
 |__ ...
 |__metadata.json
 |__batch_job.slurm
+|__compress_results.slurm
+|__submit_all.sh
 ```
 
-The file `batch_job.slurm` can then be submitted with `sbatch` to schedule each `start.sh`.  
+The file `batch_job.slurm` can then be submitted with `sbatch` to schedule each `start.sh` and `compress_results.slurm` can be submitted to tar the whole benchmark folder for easier download.
+Furthermore, calling the script `submit_all.sh` schedules both `batch_job.slurm` and `compress_results.slurm` such that the compression is only performed after all runs have finished.
 
 The config and instance folders are numbered in the given order, but cobrabench also creates a json file `metadata.json` linking them to what was specified in `config.txt` and `instances.txt`.
 

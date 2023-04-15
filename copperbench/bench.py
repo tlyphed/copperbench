@@ -32,6 +32,7 @@ class BenchConfig:
     cpu_per_node: int = 24
     mem_lines: int = 4
     exclusive: bool = False
+    cache_pinning: bool = True
 
 
 def main() -> None:
@@ -53,6 +54,7 @@ def main() -> None:
     
     cpus = int(math.ceil(bench_config.request_cpus / (bench_config.cpu_per_node / bench_config.mem_lines)) 
                          * (bench_config.cpu_per_node / bench_config.mem_lines))
+    cache_lines = int(cpus / bench_config.mem_lines)
 
     instances = {}
     with open(bench_config.instances, 'r') as file:
@@ -129,6 +131,8 @@ def main() -> None:
         file.write(f'#SBATCH --partition={bench_config.partition}\n')
         file.write(f'#SBATCH --cpus-per-task={cpus}\n')
         file.write(f'#SBATCH --mem-per-cpu={int(math.ceil(bench_config.mem_limit/cpus))}\n')
+        if bench_config.cache_pinning:
+            file.write(f'#SBATCH --gres=cache:{cache_lines}\n')
         file.write(f'#SBATCH --output=/dev/null\n')
         file.write(f'#SBATCH --error=/dev/null\n')
         file.write(f'#SBATCH --array=0-{counter - 1}\n')

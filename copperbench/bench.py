@@ -109,6 +109,9 @@ def main() -> None:
                         file.write('touch runsolver.log stdout.log stderr.log\n')
                         file.write('# create symlinks for working directory\n')
                         file.write(f'ln -s ~/{working_dir}/* .\n')
+                    
+                    file.write('# store node info\n')
+                    file.write('echo Node: $(hostname)$"\n"Date: $(date) > node_info.log\n')
                     file.write('# execute run\n')
                     cmd = string.Template(cmd).substitute(timeout=bench_config.timeout * bench_config.timeout_factor, seed=random.randint(0,2**32))
                     file.write(cmd)

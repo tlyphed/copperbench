@@ -3,10 +3,10 @@ from re import Pattern
 from pathlib import Path
 import json
 import os
-
+import re
 
 def process_bench(bench_folder: Union[Path, str], log_read_func: Callable[[Path], Optional[Dict[str, Any]]], 
-                  metadata_file: Optional[Union[Path, str]] = None) -> List[Dict[str, Any]]:
+                  metadata_file: Optional[Union[Path, str]] = None, include_node_info: bool = False) -> List[Dict[str, Any]]:
     bench_folder = Path(bench_folder)
     if metadata_file != None:
         metadata_file = Path(metadata_file)
@@ -14,6 +14,8 @@ def process_bench(bench_folder: Union[Path, str], log_read_func: Callable[[Path]
             metadata = json.loads(file.read())
     else:
         metadata = None
+
+    regex_slurm = re.compile(r"Node: (?P<slurm_node>.+)")
 
     data = []
     for config_dir in os.scandir(bench_folder):
@@ -34,6 +36,11 @@ def process_bench(bench_folder: Union[Path, str], log_read_func: Callable[[Path]
                                 entry['config'] = conf_name
                                 entry['instance'] = inst_name
                                 entry['run'] = run_dir.name[3:]
+                                if include_node_info:
+                                    with open(Path(run_dir, 'node_info.log'), 'r') as file:
+                                        match = regex_slurm.match(file.read())
+                                        if match != None:
+                                            entry = entry | match.groupdict()
                                 data += [entry | result]
 
     return data

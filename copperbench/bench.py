@@ -33,6 +33,7 @@ class BenchConfig:
     mem_lines: int = 4
     exclusive: bool = False
     cache_pinning: bool = True
+    cpu_freq = 2900
 
 
 def main() -> None:
@@ -111,7 +112,8 @@ def main() -> None:
                         file.write(f'ln -s ~/{working_dir}/* .\n')
                     
                     file.write('# store node info\n')
-                    file.write('echo Node: $(hostname)$"\\n"Date: $(date) > node_info.log\n')
+                    file.write('echo Node: $(hostname) > node_info.log\n')
+                    file.write('echo Date: $(date) >> node_info.log\n')
                     file.write('# execute run\n')
                     cmd = string.Template(cmd).substitute(timeout=bench_config.timeout * bench_config.timeout_factor, seed=random.randint(0,2**32))
                     file.write(cmd)
@@ -136,6 +138,7 @@ def main() -> None:
         file.write(f'#SBATCH --mem-per-cpu={int(math.ceil(bench_config.mem_limit/cpus))}\n')
         if bench_config.cache_pinning:
             file.write(f'#SBATCH --gres=cache:{cache_lines}\n')
+        file.write(f'#SBATCH --cpu-freq={bench_config.cpu_freq*1000}')
         file.write(f'#SBATCH --output=/dev/null\n')
         file.write(f'#SBATCH --error=/dev/null\n')
         file.write(f'#SBATCH --array=0-{counter - 1}\n')

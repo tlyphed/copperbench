@@ -34,8 +34,8 @@ class BenchConfig:
     mem_lines: int = 4
     exclusive: bool = False
     cache_pinning: bool = True
-    cpu_freq = 2200
-    copy_instances = False
+    cpu_freq: int = 2200
+    copy_instances: bool = False
 
 
 def main() -> None:

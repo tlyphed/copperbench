@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Optional
 from dataclasses import dataclass
 import argparse
+import uuid
 from .__version__ import __version__
 
 
@@ -33,7 +34,8 @@ class BenchConfig:
     mem_lines: int = 4
     exclusive: bool = False
     cache_pinning: bool = True
-    cpu_freq = 2900
+    cpu_freq = 2200
+    copy_instances = False
 
 
 def main() -> None:
@@ -94,7 +96,13 @@ def main() -> None:
                 job_file = 'start.sh'
                 job_path = log_folder / job_file
 
-                run =  f'{config} {data}'
+                shm_uid = uuid.uuid1()
+
+                if not bench_config.copy_instances:
+                    run =  f'{config} {data}'
+                else:
+                    instance_file = Path(working_dir, data).name
+                    run = f'{config} /dev/shm/{shm_uid}/{instance_file}'
 
                 if bench_config.executable != None:
                     run =  f'{bench_config.executable} {run}'
@@ -105,12 +113,15 @@ def main() -> None:
                     file.write('#!/bin/sh\n\n')
                     file.write('# change into job directory\n')
                     file.write(f'cd ~/{os.path.relpath(log_folder, start=Path.home())}\n')
-                    if working_dir != None:
+                    if working_dir != None and bench_config.copy_instances == False:
                         file.write('# create log files (so that symlinks cannot interfere)\n')
                         file.write('touch runsolver.log stdout.log stderr.log\n')
                         file.write('# create symlinks for working directory\n')
                         file.write(f'ln -s ~/{working_dir}/* .\n')
-                    
+                    elif bench_config.copy_instances:
+                        file.write('# move instance into shared mem\n')
+                        file.write(f'mkdir /dev/shm/{shm_uid}/\n')
+                        file.write(f'cp {os.path.relpath(Path(working_dir, data), start=Path.home())} /dev/shm/{shm_uid}/.\n')
                     file.write('# store node info\n')
                     file.write('echo Node: $(hostname) > node_info.log\n')
                     file.write('echo Date: $(date) >> node_info.log\n')
@@ -118,9 +129,11 @@ def main() -> None:
                     cmd = string.Template(cmd).substitute(timeout=bench_config.timeout * bench_config.timeout_factor, seed=random.randint(0,2**32))
                     file.write(cmd)
                     file.write('\n')
-                    if working_dir != None:
+                    if working_dir != None and bench_config.copy_instances == False:
                         file.write('# cleanup symlinks\n')
                         file.write('find . -type l -delete\n')
+                    if bench_config.copy_instances:
+                        file.write(f'rm -rf /dev/shm/{shm_uid}/\n')
 
                 st = os.stat(job_path)
                 os.chmod(job_path, st.st_mode | stat.S_IEXEC)

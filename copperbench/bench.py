@@ -101,7 +101,7 @@ def main() -> None:
                 if not bench_config.copy_instances:
                     run =  f'{config} {data}'
                 else:
-                    instance_file = Path(working_dir, data).name
+                    instance_file = Path(data).name
                     run = f'{config} /dev/shm/{shm_uid}/{instance_file}'
 
                 if bench_config.executable != None:
@@ -121,7 +121,7 @@ def main() -> None:
                     elif bench_config.copy_instances:
                         file.write('# move instance into shared mem\n')
                         file.write(f'mkdir /dev/shm/{shm_uid}/\n')
-                        file.write(f'cp {os.path.relpath(Path(working_dir, data), start=Path.home())} /dev/shm/{shm_uid}/.\n')
+                        file.write(f'cp ~/{os.path.relpath(Path(data), start=Path.home())} /dev/shm/{shm_uid}/.\n')
                     file.write('# store node info\n')
                     file.write('echo Node: $(hostname) > node_info.log\n')
                     file.write('echo Date: $(date) >> node_info.log\n')

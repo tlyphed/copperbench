@@ -118,7 +118,7 @@ def main() -> None:
                         file.write('touch runsolver.log stdout.log stderr.log\n')
                         file.write('# create symlinks for working directory\n')
                         file.write(f'ln -s ~/{working_dir}/* .\n')
-                    elif bench_config.copy_instances:
+                    if bench_config.copy_instances:
                         file.write('# move instance into shared mem\n')
                         file.write(f'mkdir /dev/shm/{shm_uid}/\n')
                         file.write(f'cp {data} /dev/shm/{shm_uid}/.\n')

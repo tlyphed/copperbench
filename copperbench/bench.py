@@ -113,7 +113,7 @@ def main() -> None:
                     file.write('#!/bin/sh\n\n')
                     file.write('# change into job directory\n')
                     file.write(f'cd ~/{os.path.relpath(log_folder, start=Path.home())}\n')
-                    if working_dir != None and bench_config.copy_instances == False:
+                    if working_dir != None:
                         file.write('# create log files (so that symlinks cannot interfere)\n')
                         file.write('touch runsolver.log stdout.log stderr.log\n')
                         file.write('# create symlinks for working directory\n')
@@ -121,7 +121,7 @@ def main() -> None:
                     elif bench_config.copy_instances:
                         file.write('# move instance into shared mem\n')
                         file.write(f'mkdir /dev/shm/{shm_uid}/\n')
-                        file.write(f'cp ~/{os.path.relpath(Path(data), start=Path.home())} /dev/shm/{shm_uid}/.\n')
+                        file.write(f'cp {data} /dev/shm/{shm_uid}/.\n')
                     file.write('# store node info\n')
                     file.write('echo Node: $(hostname) > node_info.log\n')
                     file.write('echo Date: $(date) >> node_info.log\n')
@@ -129,10 +129,11 @@ def main() -> None:
                     cmd = string.Template(cmd).substitute(timeout=bench_config.timeout * bench_config.timeout_factor, seed=random.randint(0,2**32))
                     file.write(cmd)
                     file.write('\n')
-                    if working_dir != None and bench_config.copy_instances == False:
+                    if working_dir != None:
                         file.write('# cleanup symlinks\n')
                         file.write('find . -type l -delete\n')
                     if bench_config.copy_instances:
+                        file.write('# cleanup tmp file\n')
                         file.write(f'rm -rf /dev/shm/{shm_uid}/\n')
 
                 st = os.stat(job_path)

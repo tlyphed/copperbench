@@ -102,7 +102,7 @@ def main() -> None:
                     run =  f'{config} {data}'
                 else:
                     instance_file = Path(data).name
-                    run = f'{config} /dev/shm/{shm_uid}/{instance_file}'
+                    run = f'{config} /dev/shm/{shm_uid}/input/{instance_file}'
 
                 if bench_config.executable != None:
                     run =  f'{bench_config.executable} {run}'
@@ -112,7 +112,12 @@ def main() -> None:
                 with open(job_path, 'w') as file:
                     file.write('#!/bin/sh\n\n')
                     file.write('# change into job directory\n')
-                    file.write(f'cd ~/{os.path.relpath(log_folder, start=Path.home())}\n')
+                    if bench_config.copy_instances:
+                        file.write(f'mkdir /dev/shm/{shm_uid}/\n')
+                        file.write(f'cd /dev/shm/{shm_uid}/\n')
+                        file.write('mkdir input\n')
+                    else:
+                        file.write(f'cd ~/{os.path.relpath(log_folder, start=Path.home())}\n')
                     if working_dir != None:
                         file.write('# create log files (so that symlinks cannot interfere)\n')
                         file.write('touch runsolver.log stdout.log stderr.log\n')
@@ -120,8 +125,7 @@ def main() -> None:
                         file.write(f'ln -s ~/{working_dir}/* .\n')
                     if bench_config.copy_instances:
                         file.write('# move instance into shared mem\n')
-                        file.write(f'mkdir /dev/shm/{shm_uid}/\n')
-                        file.write(f'cp {data} /dev/shm/{shm_uid}/.\n')
+                        file.write(f'cp {data} /dev/shm/{shm_uid}/input\n')
                     file.write('# store node info\n')
                     file.write('echo Node: $(hostname) > node_info.log\n')
                     file.write('echo Date: $(date) >> node_info.log\n')
@@ -133,6 +137,7 @@ def main() -> None:
                         file.write('# cleanup symlinks\n')
                         file.write('find . -type l -delete\n')
                     if bench_config.copy_instances:
+                        file.write(f'cp *.log ~/{os.path.relpath(log_folder, start=Path.home())}\n')
                         file.write('# cleanup tmp file\n')
                         file.write(f'rm -rf /dev/shm/{shm_uid}/\n')
 

@@ -157,7 +157,7 @@ def main() -> None:
         file.write(f'#SBATCH --mem-per-cpu={int(math.ceil(bench_config.mem_limit/cpus))}\n')
         if bench_config.cache_pinning:
             file.write(f'#SBATCH --gres=cache:{cache_lines}\n')
-        file.write(f'#SBATCH --cpu-freq={bench_config.cpu_freq*1000}:Performance\n')
+        file.write(f'#SBATCH --cpu-freq={bench_config.cpu_freq*1000}-{bench_config.cpu_freq*1000}:Performance\n')
         file.write(f'#SBATCH --output=/dev/null\n')
         file.write(f'#SBATCH --error=/dev/null\n')
         file.write(f'#SBATCH --array=0-{counter - 1}\n')

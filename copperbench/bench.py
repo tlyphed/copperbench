@@ -36,6 +36,7 @@ class BenchConfig:
     cache_pinning: bool = True
     cpu_freq: int = 2200
     copy_instances: bool = False
+    use_runsolver: bool = True
 
 
 def main() -> None:
@@ -106,8 +107,11 @@ def main() -> None:
 
                 if bench_config.executable != None:
                     run =  f'{bench_config.executable} {run}'
-                    
-                cmd = f'{bench_config.runsolver_path} -w runsolver.log -W {bench_config.timeout+bench_config.slurm_time_buffer} -V {bench_config.mem_limit} -d {bench_config.runsolver_kill_delay} {run} 2> stderr.log 1> stdout.log'
+                
+                cmd = ''
+                if bench_config.use_runsolver:
+                    cmd += f'{bench_config.runsolver_path} -w runsolver.log -W {bench_config.timeout+bench_config.slurm_time_buffer} -V {bench_config.mem_limit} -d {bench_config.runsolver_kill_delay} '   
+                cmd += f'{run} 2> stderr.log 1> stdout.log'
 
                 with open(job_path, 'w') as file:
                     file.write('#!/bin/sh\n\n')

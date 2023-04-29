@@ -6,7 +6,7 @@ import math
 import json
 import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 from dataclasses import dataclass
 import argparse
 import uuid
@@ -22,7 +22,7 @@ class BenchConfig:
     request_cpus: int
     mem_limit: int
     runs: int = 1
-    executable: Optional[Path] = None
+    executables: List[Path] = None
     working_dir: Optional[Path] = None
     runsolver_path: str = 'runsolver'
     runsolver_kill_delay: int = 10
@@ -35,8 +35,7 @@ class BenchConfig:
     exclusive: bool = False
     cache_pinning: bool = True
     cpu_freq: int = 2200
-    copy_instances: bool = False
-    use_runsolver: bool = True
+    use_shm: bool = False
 
 
 def main() -> None:
@@ -87,67 +86,82 @@ def main() -> None:
         file.write(json.dumps(metadata, indent=4))
 
     counter = 0
-    for config_name, config in configs.items():
-        for instance_name, data in instances.items():
-            for i in range(1, bench_config.runs + 1):
+    for executable in bench_config.executables:
+        for config_name, config in configs.items():
+            for instance_name, data in instances.items():
+                for i in range(1, bench_config.runs + 1):
 
-                log_folder = Path(bench_config.name, config_name, instance_name, f'run{i}')
-                os.makedirs(log_folder)
+                    log_folder = Path(bench_config.name, config_name, instance_name, f'run{i}')
+                    os.makedirs(log_folder)
 
-                job_file = 'start.sh'
-                job_path = log_folder / job_file
+                    job_file = 'start.sh'
+                    job_path = log_folder / job_file
 
-                shm_uid = uuid.uuid1()
+                    shm_uid = uuid.uuid1()
+                    shm_dir = Path(f'/dev/shm/{shm_uid}/')
 
-                if not bench_config.copy_instances:
-                    run =  f'{config} {data}'
-                else:
-                    instance_file = Path(data).name
-                    run = f'{config} /dev/shm/{shm_uid}/input/{instance_file}'
-
-                if bench_config.executable != None:
-                    run =  f'{bench_config.executable} {run}'
-                
-                cmd = ''
-                if bench_config.use_runsolver:
-                    cmd += f'{bench_config.runsolver_path} -w runsolver.log -W {bench_config.timeout+bench_config.slurm_time_buffer} -V {bench_config.mem_limit} -d {bench_config.runsolver_kill_delay} '   
-                cmd += f'{run} 2> stderr.log 1> stdout.log'
-
-                with open(job_path, 'w') as file:
-                    file.write('#!/bin/sh\n\n')
-                    file.write('# change into job directory\n')
-                    if bench_config.copy_instances:
-                        file.write(f'mkdir /dev/shm/{shm_uid}/\n')
-                        file.write(f'cd /dev/shm/{shm_uid}/\n')
-                        file.write('mkdir input\n')
+                    if not bench_config.use_shm:
+                        executable_str = executable
+                        data_str = data
+                        runsolver_str = bench_config.runsolver_path
                     else:
-                        file.write(f'cd ~/{os.path.relpath(log_folder, start=Path.home())}\n')
-                    if working_dir != None:
-                        file.write('# create log files (so that symlinks cannot interfere)\n')
-                        file.write('touch runsolver.log stdout.log stderr.log\n')
-                        file.write('# create symlinks for working directory\n')
-                        file.write(f'ln -s ~/{working_dir}/* .\n')
-                    if bench_config.copy_instances:
-                        file.write('# move instance into shared mem\n')
-                        file.write(f'cp {data} /dev/shm/{shm_uid}/input\n')
-                    file.write('# store node info\n')
-                    file.write('echo Node: $(hostname) > node_info.log\n')
-                    file.write('echo Date: $(date) >> node_info.log\n')
-                    file.write('# execute run\n')
-                    cmd = string.Template(cmd).substitute(timeout=bench_config.timeout * bench_config.timeout_factor, seed=random.randint(0,2**32))
-                    file.write(cmd)
-                    file.write('\n')
-                    if working_dir != None:
-                        file.write('# cleanup symlinks\n')
-                        file.write('find . -type l -delete\n')
-                    if bench_config.copy_instances:
-                        file.write(f'cp *.log ~/{os.path.relpath(log_folder, start=Path.home())}\n')
-                        file.write('# cleanup tmp file\n')
-                        file.write(f'rm -rf /dev/shm/{shm_uid}/\n')
+                        rs_file = Path(bench_config.runsolver_path).name
+                        runsolver_str = Path(shm_dir, 'bin', rs_file)
+                        exec_file = Path(executable).name
+                        executable_str = Path(shm_dir, 'bin', exec_file)
+                        instance_file = Path(data).name
+                        data_str = Path(shm_dir, 'input', instance_file)
 
-                st = os.stat(job_path)
-                os.chmod(job_path, st.st_mode | stat.S_IEXEC)
-                counter += 1
+                    runsolver_str += f' -w runsolver.log -W {bench_config.timeout+bench_config.slurm_time_buffer} -V {bench_config.mem_limit} -d {bench_config.runsolver_kill_delay} '   
+                    
+                    cmd = f'{runsolver_str} {executable_str} {config} {data_str} 2> stderr.log 1> stdout.log'
+    
+                    with open(job_path, 'w') as file:
+                        file.write('#!/bin/sh\n\n')
+                        file.write('_cleanup() {\n')
+                        if working_dir != None:
+                            file.write('\t# cleanup symlinks\n')
+                            file.write('\tfind . -type l -delete\n')
+                        if bench_config.copy_instances:
+                            file.write(f'\tcp *.log ~/{os.path.relpath(log_folder, start=Path.home())}\n')
+                            file.write('\t# cleanup shm files\n')
+                            file.write(f'\trm -rf /dev/shm/{shm_uid}/\n')
+                        file.write('}\n\n')
+                        file.write('_term() {\n')
+                        file.write('\tkill -TERM "$child" 2>/dev/null\n')
+                        file.write('\t_cleanup()\n')
+                        file.write('}\n\n')
+                        file.write('# change into job directory\n')
+                        if bench_config.copy_instances:
+                            file.write(f'mkdir {shm_dir}\n')
+                            file.write(f'cd {shm_dir}\n')
+                            file.write('mkdir input\n')
+                            file.write('mkdir bin\n')
+                        else:
+                            file.write(f'cd ~/{os.path.relpath(log_folder, start=Path.home())}\n')
+                        if working_dir != None:
+                            file.write('# create log files (so that symlinks cannot interfere)\n')
+                            file.write('touch runsolver.log stdout.log stderr.log\n')
+                            file.write('# create symlinks for working directory\n')
+                            file.write(f'ln -s ~/{working_dir}/* .\n')
+                        if bench_config.use_shm:
+                            file.write('# move data into shared mem\n')
+                            file.write(f'cp {bench_config.runsolver_path} {runsolver_str}\n')
+                            file.write(f'cp {executable} {executable_str}\n')
+                            file.write(f'cp {data} {data_str}\n')
+                        file.write('# store node info\n')
+                        file.write('echo Node: $(hostname) > node_info.log\n')
+                        file.write('echo Date: $(date) >> node_info.log\n')
+                        file.write('# execute run\n')
+                        cmd = string.Template(cmd).substitute(timeout=bench_config.timeout * bench_config.timeout_factor, seed=random.randint(0,2**32))
+                        file.write(cmd + ' &\n')
+                        file.write('child=$!\n')
+                        file.write('wait "$child"\n')
+                        file.write('_cleanup()\n')
+                        
+                    st = os.stat(job_path)
+                    os.chmod(job_path, st.st_mode | stat.S_IEXEC)
+                    counter += 1
     
     bench_path = os.path.relpath(Path(bench_config.name), start=Path.home())
 

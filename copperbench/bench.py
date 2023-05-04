@@ -12,19 +12,22 @@ import argparse
 import uuid
 from .__version__ import __version__
 
+@dataclass
+class Exec:
+    path: Path
+    configs: Path
 
 @dataclass
 class BenchConfig:
     name: str
     instances: Path
-    configs: Path
     timeout: int
     request_cpus: int
     mem_limit: int
+    executables: List[Exec]
+    runsolver_path: str
     runs: int = 1
-    executables: List[Path] = None
     working_dir: Optional[Path] = None
-    runsolver_path: str = 'runsolver'
     runsolver_kill_delay: int = 10
     slurm_time_buffer: int = 1
     timeout_factor: int = 1
@@ -34,8 +37,11 @@ class BenchConfig:
     mem_lines: int = 4
     exclusive: bool = False
     cache_pinning: bool = True
-    cpu_freq: int = 2200
+    cpu_freq: int = 2900
     use_shm: bool = False
+    nodelist: List[str] = None
+    def __post_init__(self):
+        self.executables = [ Exec(**e) for e in self.executables ]
 
 
 def main() -> None:
@@ -68,30 +74,42 @@ def main() -> None:
                 instances[f'instance{i}'] = instance
                 i += 1
 
-    configs = {}
-    with open(bench_config.configs, 'r') as file:
-        i = 1
-        for line in file:
-            config = line.strip()
-            if not config.startswith('#') and len(config) > 0:
-                configs[f'config{i}'] = config
-                i += 1
+    
     
     os.mkdir(bench_config.name)
 
-    with open(Path(bench_config.name, 'metadata.json'), 'w') as file:
-        metadata = {}
-        metadata['instances'] = instances
-        metadata['configs'] = configs
-        file.write(json.dumps(metadata, indent=4))
+    metadata = {}
+    metadata['instances'] = instances
+    metadata['executables'] = []
 
     counter = 0
     for executable in bench_config.executables:
+
+        configs = {}
+        with open(executable.configs, 'r') as file:
+            i = 1
+            for line in file:
+                config = line.strip()
+                if not config.startswith('#') and len(config) > 0:
+                    configs[f'config{i}'] = config
+                    i += 1
+
+        md = {}
+        md['path'] = Path(executable.path).name
+        md['configs'] = configs
+        metadata['executables'] += [
+            {
+                'name' : Path(executable.path).name,
+                'path' : executable.path,
+                'configs' : configs
+            }
+        ]
+
         for config_name, config in configs.items():
             for instance_name, data in instances.items():
                 for i in range(1, bench_config.runs + 1):
 
-                    log_folder = Path(bench_config.name, config_name, instance_name, f'run{i}')
+                    log_folder = Path(bench_config.name, Path(executable.path).name, config_name, instance_name, f'run{i}')
                     os.makedirs(log_folder)
 
                     job_file = 'start.sh'
@@ -101,20 +119,18 @@ def main() -> None:
                     shm_dir = Path(f'/dev/shm/{shm_uid}/')
 
                     if not bench_config.use_shm:
-                        executable_str = executable
+                        executable_str = executable.path
                         data_str = data
                         runsolver_str = bench_config.runsolver_path
                     else:
                         rs_file = Path(bench_config.runsolver_path).name
                         runsolver_str = Path(shm_dir, 'bin', rs_file)
-                        exec_file = Path(executable).name
+                        exec_file = Path(executable.path).name
                         executable_str = Path(shm_dir, 'bin', exec_file)
                         instance_file = Path(data).name
                         data_str = Path(shm_dir, 'input', instance_file)
-
-                    runsolver_str += f' -w runsolver.log -W {bench_config.timeout+bench_config.slurm_time_buffer} -V {bench_config.mem_limit} -d {bench_config.runsolver_kill_delay} '   
                     
-                    cmd = f'{runsolver_str} {executable_str} {config} {data_str} 2> stderr.log 1> stdout.log'
+                    cmd = f'{runsolver_str} -w runsolver.log -W {bench_config.timeout+bench_config.slurm_time_buffer} -V {bench_config.mem_limit} -d {bench_config.runsolver_kill_delay} {executable_str} {config} {data_str} 2> stderr.log 1> stdout.log'
     
                     with open(job_path, 'w') as file:
                         file.write('#!/bin/sh\n\n')
@@ -122,7 +138,7 @@ def main() -> None:
                         if working_dir != None:
                             file.write('\t# cleanup symlinks\n')
                             file.write('\tfind . -type l -delete\n')
-                        if bench_config.copy_instances:
+                        if bench_config.use_shm:
                             file.write(f'\tcp *.log ~/{os.path.relpath(log_folder, start=Path.home())}\n')
                             file.write('\t# cleanup shm files\n')
                             file.write(f'\trm -rf /dev/shm/{shm_uid}/\n')
@@ -132,7 +148,7 @@ def main() -> None:
                         file.write('\t_cleanup()\n')
                         file.write('}\n\n')
                         file.write('# change into job directory\n')
-                        if bench_config.copy_instances:
+                        if bench_config.use_shm:
                             file.write(f'mkdir {shm_dir}\n')
                             file.write(f'cd {shm_dir}\n')
                             file.write('mkdir input\n')
@@ -147,7 +163,7 @@ def main() -> None:
                         if bench_config.use_shm:
                             file.write('# move data into shared mem\n')
                             file.write(f'cp {bench_config.runsolver_path} {runsolver_str}\n')
-                            file.write(f'cp {executable} {executable_str}\n')
+                            file.write(f'cp {executable.path} {executable_str}\n')
                             file.write(f'cp {data} {data_str}\n')
                         file.write('# store node info\n')
                         file.write('echo Node: $(hostname) > node_info.log\n')
@@ -163,6 +179,9 @@ def main() -> None:
                     os.chmod(job_path, st.st_mode | stat.S_IEXEC)
                     counter += 1
     
+    with open(Path(bench_config.name, 'metadata.json'), 'w') as file:
+        file.write(json.dumps(metadata, indent=4))
+
     bench_path = os.path.relpath(Path(bench_config.name), start=Path.home())
 
     with open(Path(bench_config.name, 'batch_job.slurm'), 'w') as file:
@@ -181,6 +200,8 @@ def main() -> None:
         file.write(f'#SBATCH --array=0-{counter - 1}\n')
         if bench_config.exclusive:
             file.write(f"#SBATCH --exclusive=user\n")
+        if bench_config.nodelist != None:
+            file.write(f"#SBATCH --nodelist={','.join(bench_config.nodelist)}\n")
         file.write('#SBATCH --ntasks=1\n\n')
         file.write(f'cd ~/{bench_path}\n')
         file.write(f'FILES=(config*/instance*/run*/start.sh)\n\n')

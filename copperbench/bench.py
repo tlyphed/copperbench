@@ -210,7 +210,7 @@ def main() -> None:
             file.write(f"#SBATCH --nodelist={','.join(bench_config.nodelist)}\n")
         file.write('#SBATCH --ntasks=1\n\n')
         file.write(f'cd ~/{bench_path}\n')
-        file.write(f'FILES=(config*/instance*/run*/start.sh)\n\n')
+        file.write(f'FILES=(*/config*/instance*/run*/start.sh)\n\n')
         file.write('srun ${FILES[$SLURM_ARRAY_TASK_ID]}\n')
 
     with open(Path(bench_config.name, 'compress_results.slurm'), 'w') as file:

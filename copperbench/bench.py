@@ -12,6 +12,8 @@ import argparse
 import uuid
 from .__version__ import __version__
 
+PERF = 'perf stat -o perf.log -B -e cache-references,cache-misses,cycles,instructions,branches,faults,migrations,context-switches '
+
 @dataclass
 class Exec:
     path: Path
@@ -39,6 +41,7 @@ class BenchConfig:
     cache_pinning: bool = True
     cpu_freq: int = 2900
     use_shm: bool = False
+    use_perf: bool = False
     nodelist: List[str] = None
     def __post_init__(self):
         self.executables = [ Exec(**e) for e in self.executables ]
@@ -145,7 +148,7 @@ def main() -> None:
                         file.write('}\n\n')
                         file.write('_term() {\n')
                         file.write('\tkill -TERM "$child" 2>/dev/null\n')
-                        file.write('\t_cleanup()\n')
+                        file.write('\t_cleanup\n')
                         file.write('}\n\n')
                         file.write('# change into job directory\n')
                         if bench_config.use_shm:
@@ -170,10 +173,12 @@ def main() -> None:
                         file.write('echo Date: $(date) >> node_info.log\n')
                         file.write('# execute run\n')
                         cmd = string.Template(cmd).substitute(timeout=bench_config.timeout * bench_config.timeout_factor, seed=random.randint(0,2**32))
+                        if bench_config.use_perf:
+                            cmd = PERF + cmd
                         file.write(cmd + ' &\n')
                         file.write('child=$!\n')
                         file.write('wait "$child"\n')
-                        file.write('_cleanup()\n')
+                        file.write('_cleanup\n')
                         
                     st = os.stat(job_path)
                     os.chmod(job_path, st.st_mode | stat.S_IEXEC)

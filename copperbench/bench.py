@@ -133,7 +133,12 @@ def main() -> None:
                         instance_file = Path(data).name
                         data_str = Path(shm_dir, 'input', instance_file)
                     
-                    cmd = f'{runsolver_str} -w runsolver.log -W {bench_config.timeout+bench_config.slurm_time_buffer} -V {bench_config.mem_limit} -d {bench_config.runsolver_kill_delay} {executable_str} {config} {data_str} 2> stderr.log 1> stdout.log'
+                    rs_cmd = f'{runsolver_str} -w runsolver.log -W {bench_config.timeout+bench_config.slurm_time_buffer} -V {bench_config.mem_limit} -d {bench_config.runsolver_kill_delay} '
+                    solver_cmd =  f'{executable_str} {config} {data_str} 2> stderr.log 1> stdout.log'
+                    if bench_config.use_perf:
+                        cmd = rs_cmd + PERF + solver_cmd
+                    else:
+                        cmd = rs_cmd + solver_cmd 
     
                     with open(job_path, 'w') as file:
                         file.write('#!/bin/sh\n\n')
@@ -174,8 +179,6 @@ def main() -> None:
                         file.write('echo Date: $(date) >> node_info.log\n')
                         file.write('# execute run\n')
                         cmd = string.Template(cmd).substitute(timeout=bench_config.timeout * bench_config.timeout_factor, seed=random.randint(0,2**32))
-                        if bench_config.use_perf:
-                            cmd = PERF + cmd
                         file.write(cmd + ' &\n')
                         file.write('child=$!\n')
                         file.write('wait "$child"\n')

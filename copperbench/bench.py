@@ -166,7 +166,7 @@ def main() -> None:
                             file.write(f'ln -s ~/{working_dir}/* .\n')
                         if bench_config.use_shm:
                             file.write('# move data into shared mem\n')
-                            file.write(f'cp ~/{os.path.relpath(Path(bench_config.runsolver_path), start=Path.home())} {runsolver_str}\n')
+                            file.write(f'cp {Path(bench_config.runsolver_path)} {runsolver_str}\n')
                             file.write(f'cp {executable.path} {executable_str}\n')
                             file.write(f'cp {data} {data_str}\n')
                         file.write('# store node info\n')

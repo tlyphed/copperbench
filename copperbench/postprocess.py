@@ -17,6 +17,9 @@ def process_bench(bench_folder: Union[Path, str], log_read_func: Callable[[Path]
 
     regex_slurm = re.compile(r"Node: (?P<slurm_node>.+)")
     regex_perf_cm = re.compile(r"(?P<perf_cache_misses>(\d+\.?)*)\s+cache-misses")
+    regex_perf_cw = re.compile(r"(?P<perf_context_switches>(\d+\.?)*)\s+context-switches")
+    regex_perf_time = re.compile(r"(?P<perf_user_time>(\d+(,|.)?\d*?)) seconds user")
+    regex_perf_total_time = re.compile(r"(?P<perf_total_time>(\d+(,|.)?\d*?)) seconds time elapsed")
 
     data = []
     for exec_dir in os.scandir(bench_folder):
@@ -51,7 +54,15 @@ def process_bench(bench_folder: Union[Path, str], log_read_func: Callable[[Path]
                                                 match = regex_perf_cm.search(content)
                                                 if match != None:
                                                     entry['perf_cache_misses'] = int(match.group('perf_cache_misses').replace(".", ""))
-                                                
+                                                match = regex_perf_cw.search(content)
+                                                if match != None:
+                                                    entry['perf_context_switches'] = int(match.group('perf_context_switches').replace(".", ""))
+                                                match = regex_perf_time.search(content)
+                                                if match != None:
+                                                    entry['perf_user_time'] = float(match.group('perf_user_time').replace(",", "."))
+                                                match = regex_perf_total_time.search(content)
+                                                if match != None:
+                                                    entry['perf_total_time'] = float(match.group('perf_total_time').replace(",", "."))
                                         data += [entry | result]
 
     return data

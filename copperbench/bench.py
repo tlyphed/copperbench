@@ -35,7 +35,7 @@ class BenchConfig:
     mem_lines: int = 4
     exclusive: bool = False
     cache_pinning: bool = True
-    cpu_freq: int = 2900
+    cpu_freq: int = 2200
     use_perf: bool = False
     nodelist: List[str] = None
 
@@ -107,6 +107,15 @@ def main() -> None:
                     path = Path(m.group(1))
                     shm_path = Path(shm_dir, 'input', path.name)
                     shm_files += [(path,shm_path)]
+
+                occ = {}
+                for i, (p, sp) in enumerate(shm_files):
+                    if sp.name in occ:
+                        new_name = f'{sp.stem}{occ[sp.name]}{sp.suffix}'
+                        shm_files[i] = (p, sp.with_name(new_name))
+                        occ[sp.name] += 1
+                    else:
+                        occ[sp.name] = 1
 
                 for _,f in shm_files:
                     cmd = re.sub(r"\$file{([^}]*)}", str(f), cmd, 1)

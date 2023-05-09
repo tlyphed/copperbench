@@ -189,7 +189,7 @@ def main() -> None:
                         
                 st = os.stat(job_path)
                 os.chmod(job_path, st.st_mode | stat.S_IEXEC)
-                start_scripts += [job_path]
+                start_scripts += [Path(*job_path.parts[2:])]
     
     with open(Path(bench_config.name, 'metadata.json'), 'w') as file:
         file.write(json.dumps(metadata, indent=4))

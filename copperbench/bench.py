@@ -213,14 +213,14 @@ def main() -> None:
         file.write(f'#SBATCH --cpu-freq={bench_config.cpu_freq*1000}-{bench_config.cpu_freq*1000}:Performance\n')
         file.write(f'#SBATCH --output=/dev/null\n')
         file.write(f'#SBATCH --error=/dev/null\n')
-        file.write(f'#SBATCH --array=0-{len(start_scripts)}\n')
+        file.write(f'#SBATCH --array=1-{len(start_scripts)}\n')
         if bench_config.exclusive:
             file.write(f"#SBATCH --exclusive=user\n")
         if bench_config.nodelist != None:
             file.write(f"#SBATCH --nodelist={','.join(bench_config.nodelist)}\n")
         file.write('#SBATCH --ntasks=1\n\n')
         file.write(f'cd ~/{bench_path}\n')
-        file.write('start=$( awk "NR==$SLURM_ARRAY_TASK_ID" start_list.txt\n')
+        file.write('start=$( awk "NR==$SLURM_ARRAY_TASK_ID" start_list.txt )\n')
         file.write('srun $start')
 
     with open(Path(bench_config.name, 'compress_results.slurm'), 'w') as file:

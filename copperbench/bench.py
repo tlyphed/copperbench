@@ -1,6 +1,5 @@
 import os
 import stat
-import string
 import random
 import math
 import json
@@ -13,7 +12,17 @@ import uuid
 import re
 from .__version__ import __version__
 
-PERF = 'perf stat -o perf.log -B -e cache-references,cache-misses,cycles,instructions,branches,faults,migrations,context-switches '
+PERF_PREFIX = f'stat -o perf.log -B -e'
+PERF_EVENTS = [
+    'cache-references',
+    'cache-misses',
+    'cycles',
+    'instructions',
+    'branches',
+    'faults',
+    'migrations',
+    'context-switches'
+]
 
 @dataclass
 class BenchConfig:
@@ -85,7 +94,7 @@ def main() -> None:
     metadata['instances'] = instances
     metadata['configs'] = configs
 
-    counter = 0
+    start_scripts = []
     
     for config_name, config in configs.items():
         for instance_name, data in instances.items():
@@ -125,13 +134,18 @@ def main() -> None:
 
                 rs_file = Path(bench_config.runsolver_path).name
                 runsolver_str = Path(shm_dir, 'input', rs_file)
-                    
-                rs_cmd = f'{runsolver_str} -w runsolver.log -W {bench_config.timeout+bench_config.slurm_time_buffer} -V {bench_config.mem_limit} -d {bench_config.runsolver_kill_delay} '
+                shm_files += [(Path(bench_config.runsolver_path), runsolver_str)]
+
+                total_time_limit = bench_config.timeout+bench_config.slurm_time_buffer   
+                rs_cmd = f'{runsolver_str} -w runsolver.log -W {total_time_limit} -V {bench_config.mem_limit} -d {bench_config.runsolver_kill_delay}'
                 solver_cmd =  f'{cmd} 2> stderr.log 1> stdout.log'
                 if bench_config.use_perf:
-                    cmd = rs_cmd + PERF + solver_cmd
+                    events_str = ','.join(PERF_EVENTS)
+                    perf = Path(shm_dir, 'input', 'perf')
+                    shm_files += [(Path('/','usr','bin','perf'), perf)]
+                    cmd = f'{rs_cmd} {perf} {PERF_PREFIX} {events_str} {solver_cmd}'
                 else:
-                    cmd = rs_cmd + solver_cmd 
+                    cmd = f'{rs_cmd} {solver_cmd}'
     
                 with open(job_path, 'w') as file:
                     file.write('#!/bin/sh\n\n')
@@ -160,7 +174,6 @@ def main() -> None:
                         file.write('# create symlinks for working directory\n')
                         file.write(f'ln -s ~/{working_dir}/* .\n')
                     file.write('# move data into shared mem\n')
-                    file.write(f'cp {Path(bench_config.runsolver_path)} {runsolver_str}\n')
                     for orig_path,shm_path in shm_files:
                         file.write(f'cp {orig_path} {shm_path}\n')
 
@@ -176,10 +189,14 @@ def main() -> None:
                         
                 st = os.stat(job_path)
                 os.chmod(job_path, st.st_mode | stat.S_IEXEC)
-                counter += 1
+                start_scripts += [job_path]
     
     with open(Path(bench_config.name, 'metadata.json'), 'w') as file:
         file.write(json.dumps(metadata, indent=4))
+
+    with open(Path(bench_config.name, 'start_list.txt'), 'w') as file:
+        for p in start_scripts:
+            file.write(str(p) + '\n')
 
     bench_path = os.path.relpath(Path(bench_config.name), start=Path.home())
 
@@ -196,15 +213,15 @@ def main() -> None:
         file.write(f'#SBATCH --cpu-freq={bench_config.cpu_freq*1000}-{bench_config.cpu_freq*1000}:Performance\n')
         file.write(f'#SBATCH --output=/dev/null\n')
         file.write(f'#SBATCH --error=/dev/null\n')
-        file.write(f'#SBATCH --array=0-{counter - 1}\n')
+        file.write(f'#SBATCH --array=0-{len(start_scripts)}\n')
         if bench_config.exclusive:
             file.write(f"#SBATCH --exclusive=user\n")
         if bench_config.nodelist != None:
             file.write(f"#SBATCH --nodelist={','.join(bench_config.nodelist)}\n")
         file.write('#SBATCH --ntasks=1\n\n')
         file.write(f'cd ~/{bench_path}\n')
-        file.write(f'FILES=(config*/instance*/run*/start.sh)\n\n')
-        file.write('srun ${FILES[$SLURM_ARRAY_TASK_ID]}\n')
+        file.write('start=$( awk "NR==$SLURM_ARRAY_TASK_ID" start_list.txt\n')
+        file.write('srun $start')
 
     with open(Path(bench_config.name, 'compress_results.slurm'), 'w') as file:
         file.write('#!/bin/bash\n')

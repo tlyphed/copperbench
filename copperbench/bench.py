@@ -178,8 +178,9 @@ def main() -> None:
                         file.write(f'cp {orig_path} {shm_path}\n')
 
                     file.write('# store node info\n')
-                    file.write('echo Node: $(hostname) > node_info.log\n')
-                    file.write('echo Date: $(date) >> node_info.log\n')
+                    file.write('echo Date: $(date) > node_info.log\n')
+                    file.write('echo Node: $(hostname) >> node_info.log\n')
+                    file.write('cat /proc/self/status | grep Cpus_allowed: >> node_info.log\n')
                     file.write('# execute run\n')
 
                     file.write(cmd + ' &\n')

@@ -16,7 +16,7 @@ def process_bench(bench_folder: Union[Path, str], log_read_func: Callable[[Path]
     else:
         metadata = None
 
-    regex_slurm = re.compile(r"Node: (?P<slurm_node>.+)")
+    regex_slurm = re.compile(r"Date:\s+(?P<slurm_date>.+)\nNode:\s+(?P<slurm_node>.+)\nCpus_allowed:\s+(?P<slurm_cpumask>.+)")
 
     data = []
     for config_dir in os.scandir(bench_folder):

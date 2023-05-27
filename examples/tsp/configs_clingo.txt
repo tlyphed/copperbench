@@ -1,1 +1,1 @@
---time-limit $timeout tsp.lp
+--time-limit $timeout $file{tsp.lp}

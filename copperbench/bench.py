@@ -34,7 +34,9 @@ class BenchConfig:
     mem_limit: int
     runsolver_path: str
     runs: int = 1
+    executable: str = None
     working_dir: Optional[Path] = None
+    symlink_working_dir: bool = True
     runsolver_kill_delay: int = 10
     slurm_time_buffer: int = 1
     timeout_factor: int = 1
@@ -45,9 +47,9 @@ class BenchConfig:
     exclusive: bool = False
     cache_pinning: bool = True
     cpu_freq: int = 2200
-    use_perf: bool = False
+    use_perf: bool = True
     nodelist: List[str] = None
-
+    
 
 def main() -> None:
     
@@ -109,11 +111,17 @@ def main() -> None:
                 shm_uid = uuid.uuid1()
                 shm_dir = Path(f'/dev/shm/{shm_uid}/')
 
-                cmd = config + ' ' + data
+                cmd = ''
+                if bench_config.executable != None:
+                    cmd += bench_config.executable
+                    cmd += ' '
+                cmd += config + ' ' + data
 
                 shm_files = []
                 for m in re.finditer(r"\$file{([^}]*)}", cmd):
                     path = Path(m.group(1))
+                    if working_dir != None:
+                        path = Path('~', os.path.relpath(working_dir, start=Path.home()), path)
                     shm_path = Path(shm_dir, 'input', path.name)
                     shm_files += [(path,shm_path)]
 
@@ -150,9 +158,10 @@ def main() -> None:
                 with open(job_path, 'w') as file:
                     file.write('#!/bin/sh\n\n')
                     file.write('_cleanup() {\n')
-                    if working_dir != None:
+                    if working_dir != None and bench_config.symlink_working_dir:
                         file.write('\t# cleanup symlinks\n')
                         file.write('\tfind . -type l -delete\n')
+                    file.write(f'\t# copy output into run dir\n')
                     file.write(f'\tcp * ~/{os.path.relpath(log_folder, start=Path.home())}\n')
                     file.write('\t# cleanup shm files\n')
                     file.write(f'\trm -rf /dev/shm/{shm_uid}/\n')
@@ -168,7 +177,7 @@ def main() -> None:
                     file.write('mkdir input\n')
                     file.write('mkdir output\n')
                     file.write('cd output\n')
-                    if working_dir != None:
+                    if working_dir != None and bench_config.symlink_working_dir:
                         file.write('# create log files (so that symlinks cannot interfere)\n')
                         file.write('touch runsolver.log stdout.log stderr.log\n')
                         file.write('# create symlinks for working directory\n')

@@ -37,8 +37,8 @@ class BenchConfig:
     executable: str = None
     working_dir: Optional[Path] = None
     symlink_working_dir: bool = True
-    runsolver_kill_delay: int = 10
-    slurm_time_buffer: int = 1
+    runsolver_kill_delay: int = 5
+    slurm_time_buffer: int = 10
     timeout_factor: int = 1
     initial_seed: Optional[int] = None
     partition: str = 'broadwell'
@@ -47,9 +47,7 @@ class BenchConfig:
     exclusive: bool = False
     cache_pinning: bool = True
     cpu_freq: int = 2200
-    use_perf: bool = True
-    nodelist: List[str] = None
-    
+    use_perf: bool = True    
 
 def main() -> None:
     
@@ -144,8 +142,9 @@ def main() -> None:
                 runsolver_str = Path(shm_dir, 'input', rs_file)
                 shm_files += [(Path(bench_config.runsolver_path), runsolver_str)]
 
-                total_time_limit = bench_config.timeout+bench_config.slurm_time_buffer   
-                rs_cmd = f'{runsolver_str} -w runsolver.log -W {total_time_limit} -V {bench_config.mem_limit} -d {bench_config.runsolver_kill_delay}'
+                rs_time = bench_config.timeout+bench_config.slurm_time_buffer  
+                slurm_time = rs_time+bench_config.runsolver_kill_delay 
+                rs_cmd = f'{runsolver_str} -w runsolver.log -W {rs_time} -V {bench_config.mem_limit} -d {bench_config.runsolver_kill_delay}'
                 solver_cmd =  f'{cmd} 2> stderr.log 1> stdout.log'
                 if bench_config.use_perf:
                     events_str = ','.join(PERF_EVENTS)
@@ -214,7 +213,7 @@ def main() -> None:
         file.write('#!/bin/bash\n')
         file.write('#\n')
         file.write(f'#SBATCH --job-name={bench_config.name}\n')
-        file.write(f'#SBATCH --time={datetime.timedelta(seconds=bench_config.timeout+bench_config.slurm_time_buffer)}\n')
+        file.write(f'#SBATCH --time={datetime.timedelta(seconds=slurm_time)}\n')
         file.write(f'#SBATCH --partition={bench_config.partition}\n')
         file.write(f'#SBATCH --cpus-per-task={cpus}\n')
         file.write(f'#SBATCH --mem-per-cpu={int(math.ceil(bench_config.mem_limit/cpus))}\n')
@@ -226,8 +225,6 @@ def main() -> None:
         file.write(f'#SBATCH --array=1-{len(start_scripts)}\n')
         if bench_config.exclusive:
             file.write(f"#SBATCH --exclusive=user\n")
-        if bench_config.nodelist != None:
-            file.write(f"#SBATCH --nodelist={','.join(bench_config.nodelist)}\n")
         file.write('#SBATCH --ntasks=1\n\n')
         file.write(f'cd ~/{bench_path}\n')
         file.write('start=$( awk "NR==$SLURM_ARRAY_TASK_ID" start_list.txt )\n')

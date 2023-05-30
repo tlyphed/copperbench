@@ -1,0 +1,2 @@
+-c $file{configs/dynamic.json} -gt $timeout --seed $seed -i $file{tsp.lp} 
+c $file{configs/roulette_alpha0.4.json} -gt $timeout --seed $seed -i $file{tsp.lp} 

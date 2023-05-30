@@ -1,0 +1,27 @@
+{
+    "instances": {
+        "instance1": "dom_rand_70_300_1155482584_3",
+        "instance2": "rand_70_300_1155482584_0",
+        "instance3": "rand_70_300_1155482584_3",
+        "instance4": "rand_70_300_1155482584_4",
+        "instance5": "rand_70_300_1155482584_5",
+        "instance6": "rand_70_300_1155482584_7",
+        "instance7": "rand_70_300_1155482584_8",
+        "instance8": "rand_70_300_1155482584_9",
+        "instance9": "rand_70_300_1155482584_11",
+        "instance10": "rand_70_300_1155482584_12",
+        "instance11": "rand_70_300_1155482584_14",
+        "instance12": "rand_80_340_1159656267_0",
+        "instance13": "rand_80_340_1159656267_4",
+        "instance14": "rand_80_340_1159656267_10",
+        "instance15": "rand_80_340_1159656267_11",
+        "instance16": "rand_80_340_1159656267_13",
+        "instance17": "rand_80_340_1159656267_15",
+        "instance18": "rand_80_340_1159656267_16",
+        "instance19": "rand_80_340_1159656267_17",
+        "instance20": "rand_80_340_1159656267_18"
+    },
+    "configs": {
+        "config1": "clingo"
+    }
+}

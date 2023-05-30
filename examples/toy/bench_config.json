@@ -1,0 +1,17 @@
+{
+    "name" : "example_bench",
+    "configs" : "configs.txt",
+    "instances" : "instances.txt",
+    "timeout" : 60,   
+    "mem_limit" : 25600,
+    "request_cpus" : 1,
+    "runs" : 5,
+    "initial_seed" : 1234,
+    "runsolver_path" : "~/Applications/runsolver/runsolver",
+    "runsolver_kill_delay" : 10,
+    "slurm_time_buffer" : 1,
+    "timeout_factor" : 1,
+    "partition" : "broadwell",
+    "mem_lines" : 4,
+    "cpu_per_node" : 24
+}

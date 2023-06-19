@@ -7,6 +7,5 @@
     "request_cpus" : 1,
     "configs" : "configs_alaspo.txt",
     "instances" : "instances.txt",
-    "working_dir" : ".",
-    "runsolver_path" : "~/Applications/runsolver/runsolver"
+    "working_dir" : "."
 }

@@ -32,7 +32,6 @@ class BenchConfig:
     timeout: int
     request_cpus: int
     mem_limit: int
-    runsolver_path: str
     runs: int = 1
     executable: str = None
     working_dir: Optional[Path] = None
@@ -48,6 +47,7 @@ class BenchConfig:
     cache_pinning: bool = True
     cpu_freq: int = 2200
     use_perf: bool = True    
+    runsolver_path: str = "/opt/runsolver"
 
 def main() -> None:
     

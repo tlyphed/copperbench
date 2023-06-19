@@ -21,7 +21,6 @@ Required fields are:
 * `timeout`: The time limit for each run in seconds. 
 * `mem_limit`: The memory limit for each run. 
 * `request_cpus`: The number of cores used in parallel in each run. 
-* `runsolver_path`: The path to the runsolver binary.
 
 Further optional arguments:
 * `executable`: Short hand for a string which gets prepended to each configuration (default: None).
@@ -40,6 +39,7 @@ Advanced parameters (usually do not need changing):
 * `cache_pinning`: Whether CPU allocation should be aware of memory lines (default: `true`).
 * `use_perf`: Whether `perf` should be used for monitoring (default: `true`).
 * `symlink_working_dir`: Whether symlinks should be created in the run dir so that the solver can find potentially referenced files (default: `true`).
+* `runsolver_path`: The path to the runsolver binary.
 
 There are three meta-arguments which can be used in the executable string, config and instance files. Namely, `$seed`, `$timeout`, `$file{<path/to/file>}`. During job generation the first two are replaced with the respective values where the `$seed` is randomly generated. The initial seed for this generation can be specified with the optional field `initial_seed` in the bench config. 
 Furthermore, since `timeout` is assumed to be in seconds, it is possible to factor that value with the optional `timeout_factor` parameter before it is substituted with `$timeout`.  

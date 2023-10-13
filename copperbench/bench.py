@@ -33,7 +33,7 @@ class BenchConfig:
     request_cpus: int
     mem_limit: int
     runs: int = 1
-    executable: str = None
+    executable: Optional[str] = None
     working_dir: Optional[Path] = None
     symlink_working_dir: bool = True
     runsolver_kill_delay: int = 5
@@ -48,6 +48,7 @@ class BenchConfig:
     cpu_freq: int = 2200
     use_perf: bool = True    
     runsolver_path: str = "/opt/runsolver"
+    billing: Optional[str] = None
 
 def main() -> None:
     
@@ -217,6 +218,10 @@ def main() -> None:
         file.write(f'#SBATCH --partition={bench_config.partition}\n')
         file.write(f'#SBATCH --cpus-per-task={cpus}\n')
         file.write(f'#SBATCH --mem-per-cpu={int(math.ceil(bench_config.mem_limit/cpus))}\n')
+        file.write(f'#SBATCH --mem-per-cpu={int(math.ceil(bench_config.mem_limit/cpus))}\n')
+        account = bench_config.billing
+        if account:
+            file.write(f'#SBATCH --account={account}\n')
         if bench_config.cache_pinning:
             file.write(f'#SBATCH --gres=cache:{cache_lines}\n')
         file.write(f'#SBATCH --cpu-freq={bench_config.cpu_freq*1000}-{bench_config.cpu_freq*1000}:performance\n')

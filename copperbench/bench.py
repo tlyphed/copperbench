@@ -33,7 +33,7 @@ class BenchConfig:
     request_cpus: int
     mem_limit: int
     runs: int = 1
-    executable: str = None
+    executable: Optional[str] = None
     working_dir: Optional[Path] = None
     symlink_working_dir: bool = True
     runsolver_kill_delay: int = 5

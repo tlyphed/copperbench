@@ -98,6 +98,7 @@ def main() -> None:
     start_scripts = []
     
     for config_name, config in configs.items():
+        config = "" if config == "None" else config
         for instance_name, data in instances.items():
             for i in range(1, bench_config.runs + 1):
 

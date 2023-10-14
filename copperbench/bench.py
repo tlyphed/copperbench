@@ -41,7 +41,7 @@ class BenchConfig:
     timeout_factor: int = 1
     initial_seed: Optional[int] = None
     partition: str = 'broadwell'
-    cpu_per_node: int = 24
+    cpus_per_node: int = 24
     mem_lines: int = 4
     exclusive: bool = False
     cache_pinning: bool = True
@@ -67,8 +67,8 @@ def main() -> None:
     if bench_config.initial_seed != None:
         random.seed(bench_config.initial_seed)
     
-    cpus = int(math.ceil(bench_config.request_cpus / (bench_config.cpu_per_node / bench_config.mem_lines)) 
-                         * (bench_config.cpu_per_node / bench_config.mem_lines))
+    cpus = int(math.ceil(bench_config.request_cpus / (bench_config.cpus_per_node / bench_config.mem_lines)) 
+                         * (bench_config.cpus_per_node / bench_config.mem_lines))
     cache_lines = int(cpus / bench_config.mem_lines)
 
     instances = {}
@@ -98,6 +98,7 @@ def main() -> None:
     start_scripts = []
     
     for config_name, config in configs.items():
+        config = "" if config == "None" else config
         for instance_name, data in instances.items():
             for i in range(1, bench_config.runs + 1):
 
@@ -240,7 +241,7 @@ def main() -> None:
         file.write('#\n')
         file.write(f'#SBATCH --job-name={bench_config.name}_compress\n')
         file.write(f'#SBATCH --partition={bench_config.partition}\n')
-        file.write(f'#SBATCH --cpus-per-task={int(bench_config.cpu_per_node / bench_config.mem_lines)}\n')
+        file.write(f'#SBATCH --cpus-per-task={int(bench_config.cpus_per_node / bench_config.mem_lines)}\n')
         file.write(f'#SBATCH --output=/dev/null\n')
         file.write(f'#SBATCH --error=/dev/null\n')
         file.write('#SBATCH --ntasks=1\n\n')

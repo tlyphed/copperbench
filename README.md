@@ -40,6 +40,8 @@ Advanced parameters (usually do not need changing):
 * `use_perf`: Whether `perf` should be used for monitoring (default: `true`).
 * `symlink_working_dir`: Whether symlinks should be created in the run dir so that the solver can find potentially referenced files (default: `true`).
 * `runsolver_path`: The path to the runsolver binary.
+* `billing`: The SLURM account the job will be billed to (default `None`).
+* `max_parallel_jobs`: The maximum number of jobs that will be executed in parallel (default `None` which means no limit).
 
 There are three meta-arguments which can be used in the executable string, config and instance files. Namely, `$seed`, `$timeout`, `$file{<path/to/file>}`. During job generation the first two are replaced with the respective values where the `$seed` is randomly generated. The initial seed for this generation can be specified with the optional field `initial_seed` in the bench config. 
 Furthermore, since `timeout` is assumed to be in seconds, it is possible to factor that value with the optional `timeout_factor` parameter before it is substituted with `$timeout`.  

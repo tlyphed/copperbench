@@ -49,6 +49,7 @@ class BenchConfig:
     use_perf: bool = True    
     runsolver_path: str = "/opt/runsolver"
     billing: Optional[str] = None
+    max_parallel_jobs: Optional[int] = None
 
 def main() -> None:
     
@@ -228,7 +229,10 @@ def main() -> None:
         file.write(f'#SBATCH --cpu-freq={bench_config.cpu_freq*1000}-{bench_config.cpu_freq*1000}:performance\n')
         file.write(f'#SBATCH --output=/dev/null\n')
         file.write(f'#SBATCH --error=/dev/null\n')
-        file.write(f'#SBATCH --array=1-{len(start_scripts)}\n')
+        if bench_config.max_parallel_jobs:
+            file.write(f'#SBATCH --array=1-{len(start_scripts)}%{bench_config.max_parallel_jobs}\n')
+        else:
+            file.write(f'#SBATCH --array=1-{len(start_scripts)}\n')
         if bench_config.exclusive:
             file.write(f"#SBATCH --exclusive=user\n")
         file.write('#SBATCH --ntasks=1\n\n')

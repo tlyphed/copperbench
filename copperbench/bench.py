@@ -58,7 +58,9 @@ def main() -> None:
     parser.add_argument('bench_config_file') 
     args = parser.parse_args() 
 
-    with open(args.bench_config_file, 'r') as file:
+
+    bench_config_dir = os.path.dirname(args.bench_config_file)
+    with open(os.path.realpath(args.bench_config_file), 'r') as file:
         bench_config = BenchConfig(**json.loads(file.read()))
 
     working_dir = None
@@ -73,7 +75,11 @@ def main() -> None:
     cache_lines = int(cpus / bench_config.mem_lines)
 
     instances = {}
-    with open(bench_config.instances, 'r') as file:
+    if os.path.isabs(bench_config.instances):
+        instance_path=bench_config.instances
+    else:
+        instance_path=f'{bench_config_dir}/{bench_config.instances}'
+    with open(instance_path, 'r') as file:
         i = 1
         for line in file:
             instance = line.strip()
@@ -82,7 +88,11 @@ def main() -> None:
                 i += 1
 
     configs = {}
-    with open(bench_config.configs, 'r') as file:
+    if os.path.isabs(bench_config.configs):
+        config_path=bench_config.configs
+    else:
+        config_path=f'{bench_config_dir}/{bench_config.configs}'
+    with open(config_path, 'r') as file:
         i = 1
         for line in file:
             config = line.strip()

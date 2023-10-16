@@ -12,5 +12,5 @@
     "timeout_factor" : 1,
     "partition" : "broadwell",
     "mem_lines" : 4,
-    "cpu_per_node" : 24
+    "cpus_per_node" : 24
 }

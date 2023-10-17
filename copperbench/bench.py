@@ -120,7 +120,7 @@ def main() -> None:
             for i in range(1, bench_config.runs + 1):
 
                 log_folder = Path(bench_config.name, config_name, instance_name, f'run{i}')
-                if os.path.exists(bench_config.name):
+                if os.path.exists(log_folder):
                     if not bench_config.overwrite:
                         print(f"Directory {os.path.realpath(log_folder)} exists. Exiting...")
                         exit(2)
@@ -137,7 +137,7 @@ def main() -> None:
                 if bench_config.executable != None:
                     cmd += bench_config.executable
                     cmd += ' '
-                cmd += config + ' ' + data
+                cmd += config
 
                 shm_files = []
                 for m in re.finditer(r"\$file{([^}]*)}", cmd):
@@ -145,8 +145,24 @@ def main() -> None:
                     if working_dir != None:
                         path = Path('~', os.path.relpath(working_dir, start=os.path.realpath(Path.home())), path)
                     shm_path = Path(shm_dir, 'input', path.name)
-                    shm_files += [(path,shm_path)]
+                    shm_files.append((path,shm_path))
 
+                data_split = data.split(';,| ')
+                collected = set()
+                for e in data_split:
+                    if e in collected:
+                        print(f'Instance {e} was already added. Instances of the same name from different paths are currently not supported! Exiting...')
+                        exit(2)
+                    collected.add(e)
+                    if not os.path.isabs(e):
+                        instance_path = os.path.realpath(os.path.join(bench_config_dir,e))
+                    else:
+                        instance_path = e
+                    instance_path=Path('~',os.path.relpath(instance_path, start=os.path.realpath(Path.home())))
+                    shm_path = Path(shm_dir, 'input', os.path.basename(instance_path))
+                    shm_files.append((Path(instance_path),shm_path))
+                    cmd += f' {shm_path}'
+                    
                 occ = {}
                 for i, (p, sp) in enumerate(shm_files):
                     if sp.name in occ:
@@ -181,7 +197,7 @@ def main() -> None:
                 log_folder=f'~/{os.path.relpath(log_folder, start=os.path.realpath(os.path.realpath(Path.home())))}'
     
                 with open(job_path, 'w') as file:
-                    file.write('#!/bin/sh\n\n')
+                    file.write('#!/usr/bin/env bash\n\n')
                     file.write('_cleanup() {\n')
                     if working_dir != None and bench_config.symlink_working_dir:
                         file.write('\t# cleanup symlinks\n')
@@ -242,6 +258,7 @@ def main() -> None:
         file.write(f'#SBATCH --time={datetime.timedelta(seconds=slurm_time)}\n')
         file.write(f'#SBATCH --partition={bench_config.partition}\n')
         file.write(f'#SBATCH --cpus-per-task={cpus}\n')
+        file.write(f'#SBATCH --mem-per-cpu={int(math.ceil(bench_config.mem_limit/cpus))}\n')
         file.write(f'#SBATCH --mem-per-cpu={int(math.ceil(bench_config.mem_limit/cpus))}\n')
         account = bench_config.billing
         if account:

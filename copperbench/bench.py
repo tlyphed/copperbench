@@ -101,11 +101,12 @@ def main() -> None:
                 configs[f'config{i}'] = config
                 i += 1
 
-    if not os.path.exists(bench_config.name) and overwrite:
-        os.mkdir(bench_config.name)
+    if os.path.exists(bench_config.name):
+        if not bench_config.overwrite:
+            print(f"Directory {os.path.realpath(bench_config.name)} exists. Exiting...")
+            exit(2)
     else:
-        print(f"Directory {os.path.realpath(bench_config.name)} exists. Exiting...")
-        exit(2)
+        os.mkdir(bench_config.name)
 
     metadata = {}
     metadata['instances'] = instances
@@ -119,11 +120,12 @@ def main() -> None:
             for i in range(1, bench_config.runs + 1):
 
                 log_folder = Path(bench_config.name, config_name, instance_name, f'run{i}')
-                if not os.path.exists(bench_config.name) and overwrite:
-                    os.makedirs(log_folder)
+                if os.path.exists(bench_config.name):
+                    if not bench_config.overwrite:
+                        print(f"Directory {os.path.realpath(log_folder)} exists. Exiting...")
+                        exit(2)
                 else:
-                    print(f"Directory {os.path.realpath(log_folder)} exists. Exiting...")
-                    exit(2)
+                    os.makedirs(log_folder)
 
                 job_file = 'start.sh'
                 job_path = log_folder / job_file

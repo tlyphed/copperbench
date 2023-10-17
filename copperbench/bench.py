@@ -184,7 +184,7 @@ def main() -> None:
 
                 rs_time = bench_config.timeout+bench_config.slurm_time_buffer  
                 slurm_time = rs_time+bench_config.runsolver_kill_delay 
-                rs_cmd = f'{runsolver_str} -w runsolver.log -W {rs_time} -V {bench_config.mem_limit} -d {bench_config.runsolver_kill_delay}'
+                rs_cmd = f'{runsolver_str} -w runsolver.log -v varfile.txt -W {rs_time} -V {bench_config.mem_limit} -d {bench_config.runsolver_kill_delay}'
                 solver_cmd =  f'{cmd} 2> stderr.log 1> stdout.log'
                 if bench_config.use_perf:
                     events_str = ','.join(PERF_EVENTS)

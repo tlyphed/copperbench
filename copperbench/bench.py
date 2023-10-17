@@ -60,7 +60,7 @@ def main() -> None:
     args = parser.parse_args() 
 
 
-    bench_config_dir = os.path.dirname(args.bench_config_file)
+    bench_config_dir = os.path.dirname(os.path.realpath(args.bench_config_file))
     with open(os.path.realpath(args.bench_config_file), 'r') as file:
         bench_config = BenchConfig(**json.loads(file.read()))
 

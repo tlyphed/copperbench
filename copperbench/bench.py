@@ -50,6 +50,7 @@ class BenchConfig:
     runsolver_path: str = "/opt/runsolver"
     billing: Optional[str] = None
     max_parallel_jobs: Optional[int] = None
+    overwrite: bool = False
 
 def main() -> None:
     
@@ -65,7 +66,7 @@ def main() -> None:
 
     working_dir = None
     if bench_config.working_dir != None:
-        working_dir = os.path.relpath(bench_config.working_dir, start=Path.home())
+        working_dir = os.path.relpath(os.path.realpath(bench_config.working_dir), start=os.path.realpath(Path.home()))
 
     if bench_config.initial_seed != None:
         random.seed(bench_config.initial_seed)
@@ -99,8 +100,12 @@ def main() -> None:
             if not config.startswith('#') and len(config) > 0:
                 configs[f'config{i}'] = config
                 i += 1
-    
-    os.mkdir(bench_config.name)
+
+    if not os.path.exists(bench_config.name) and overwrite:
+        os.mkdir(bench_config.name)
+    else:
+        print(f"Directory {os.path.realpath(bench_config.name)} exists. Exiting...")
+        exit(2)
 
     metadata = {}
     metadata['instances'] = instances
@@ -114,7 +119,11 @@ def main() -> None:
             for i in range(1, bench_config.runs + 1):
 
                 log_folder = Path(bench_config.name, config_name, instance_name, f'run{i}')
-                os.makedirs(log_folder)
+                if not os.path.exists(bench_config.name) and overwrite:
+                    os.makedirs(log_folder)
+                else:
+                    print(f"Directory {os.path.realpath(log_folder)} exists. Exiting...")
+                    exit(2)
 
                 job_file = 'start.sh'
                 job_path = log_folder / job_file
@@ -132,7 +141,7 @@ def main() -> None:
                 for m in re.finditer(r"\$file{([^}]*)}", cmd):
                     path = Path(m.group(1))
                     if working_dir != None:
-                        path = Path('~', os.path.relpath(working_dir, start=Path.home()), path)
+                        path = Path('~', os.path.relpath(working_dir, start=os.path.realpath(Path.home())), path)
                     shm_path = Path(shm_dir, 'input', path.name)
                     shm_files += [(path,shm_path)]
 
@@ -166,6 +175,8 @@ def main() -> None:
                     cmd = f'{rs_cmd} {perf} {PERF_PREFIX} {events_str} {solver_cmd}'
                 else:
                     cmd = f'{rs_cmd} {solver_cmd}'
+
+                log_folder=f'~/{os.path.relpath(log_folder, start=os.path.realpath(os.path.realpath(Path.home())))}'
     
                 with open(job_path, 'w') as file:
                     file.write('#!/bin/sh\n\n')
@@ -174,7 +185,7 @@ def main() -> None:
                         file.write('\t# cleanup symlinks\n')
                         file.write('\tfind . -type l -delete\n')
                     file.write(f'\t# copy output into run dir\n')
-                    file.write(f'\tcp * ~/{os.path.relpath(log_folder, start=Path.home())}\n')
+                    file.write(f'\tcp * {log_folder}\n')
                     file.write('\t# cleanup shm files\n')
                     file.write(f'\trm -rf /dev/shm/{shm_uid}/\n')
                     file.write('}\n\n')
@@ -220,7 +231,7 @@ def main() -> None:
         for p in start_scripts:
             file.write(str(p) + '\n')
 
-    bench_path = os.path.relpath(Path(bench_config.name), start=Path.home())
+    bench_path = os.path.relpath(Path(bench_config.name), start=os.path.realpath(Path.home()))
 
     with open(Path(bench_config.name, 'batch_job.slurm'), 'w') as file:
         file.write('#!/bin/bash\n')
@@ -267,7 +278,7 @@ def main() -> None:
     with open(submit_sh_path, 'w') as file:
         file.write('#!/bin/bash\n')
         file.write('#\n')
-        file.write(f'cd ~/{os.path.relpath(Path(bench_config.name), start=Path.home())}\n')
+        file.write(f'cd ~/{os.path.relpath(Path(bench_config.name), start=os.path.realpath(Path.home()))}\n')
         file.write(f'jid=$(sbatch --parsable batch_job.slurm)\n')
         file.write(f'sbatch --dependency=afterany:${{jid}} compress_results.slurm')
 

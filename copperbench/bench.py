@@ -176,6 +176,7 @@ def main() -> None:
                     data_split = re.split(';|,| ', data)
                     collected = set()
                     uncompress = []
+                    cmd_instances = []
                     for e in data_split:
                         if e in collected:
                             print(
@@ -201,10 +202,21 @@ def main() -> None:
                             shm_path_uncompr = os.path.splitext(e)[0]
                             shm_path_uncompr = Path(shm_dir, 'input', os.path.basename(shm_path_uncompr))
                             uncompress.append((shm_path, shm_path_uncompr))
+                            cmd_instances.append(shm_path_uncompr)
                         else:
                             shm_path_uncompr = shm_path
+                            cmd_instances.append(shm_path_uncompr)
 
-                        cmd += f' {shm_path_uncompr}'
+                    cmd_instances_used=set()
+                    for m in re.finditer(r"\$[1-9][0-9]*", cmd):
+                        grp=m.group(0)
+                        idx=int(grp[1:])
+                        cmd=cmd.replace(grp,f'{cmd_instances[idx-1]}')
+                        cmd_instances_used.add(idx-1)
+                    for i,v in enumerate(cmd_instances):
+                        if i in cmd_instances_used:
+                            continue
+                        cmd+=f' {v}'
 
                     occ = {}
                     for i, (p, sp) in enumerate(shm_files):

@@ -147,7 +147,7 @@ def main() -> None:
                     shm_path = Path(shm_dir, 'input', path.name)
                     shm_files.append((path,shm_path))
 
-                data_split = data.split(';,| ')
+                data_split = re.split(';|,| ', data)
                 collected = set()
                 uncompress = []
                 for e in data_split:
@@ -155,12 +155,10 @@ def main() -> None:
                         print(f'Instance {e} was already added. Instances of the same name from different paths are currently not supported! Exiting...')
                         exit(2)
                     collected.add(e)
-                    if not os.path.isabs(e):
-                        instance_path = os.path.realpath(os.path.join(bench_config_dir,e))
-                    else:
-                        instance_path = e
+                    instance_path = Path(e)
+                    if working_dir != None:
+                        instance_path = Path('~', os.path.relpath(working_dir, start=os.path.realpath(Path.home())), instance_path)
 
-                    instance_path=Path('~',os.path.relpath(instance_path, start=os.path.realpath(Path.home())))
                     shm_path = Path(shm_dir, 'input', os.path.basename(e))
                     shm_files.append((Path(instance_path),shm_path))
 
@@ -300,8 +298,8 @@ def main() -> None:
         if bench_config.cache_pinning:
             file.write(f'#SBATCH --gres=cache:{cache_lines}\n')
         file.write(f'#SBATCH --cpu-freq={bench_config.cpu_freq*1000}-{bench_config.cpu_freq*1000}:performance\n')
-        file.write(f'#SBATCH --output=/dev/null\n')
-        file.write(f'#SBATCH --error=/dev/null\n')
+        file.write(f'#SBATCH --output=slurm.log\n')
+        file.write(f'#SBATCH --error=slurm.log\n')
         if bench_config.max_parallel_jobs:
             file.write(f'#SBATCH --array=1-{len(start_scripts)}%{bench_config.max_parallel_jobs}\n')
         else:

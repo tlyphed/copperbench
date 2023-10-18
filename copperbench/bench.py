@@ -50,6 +50,7 @@ class BenchConfig:
     runsolver_path: str = "/opt/runsolver"
     billing: Optional[str] = None
     max_parallel_jobs: Optional[int] = None
+    overwrite: bool = False
 
 def main() -> None:
     
@@ -59,13 +60,13 @@ def main() -> None:
     args = parser.parse_args() 
 
 
-    bench_config_dir = os.path.dirname(args.bench_config_file)
+    bench_config_dir = os.path.dirname(os.path.realpath(args.bench_config_file))
     with open(os.path.realpath(args.bench_config_file), 'r') as file:
         bench_config = BenchConfig(**json.loads(file.read()))
 
     working_dir = None
     if bench_config.working_dir != None:
-        working_dir = os.path.relpath(bench_config.working_dir, start=Path.home())
+        working_dir = os.path.relpath(os.path.realpath(bench_config.working_dir), start=os.path.realpath(Path.home()))
 
     if bench_config.initial_seed != None:
         random.seed(bench_config.initial_seed)
@@ -99,8 +100,13 @@ def main() -> None:
             if not config.startswith('#') and len(config) > 0:
                 configs[f'config{i}'] = config
                 i += 1
-    
-    os.mkdir(bench_config.name)
+
+    if os.path.exists(bench_config.name):
+        if not bench_config.overwrite:
+            print(f"Directory {os.path.realpath(bench_config.name)} exists. Exiting...")
+            exit(2)
+    else:
+        os.mkdir(bench_config.name)
 
     metadata = {}
     metadata['instances'] = instances
@@ -114,7 +120,12 @@ def main() -> None:
             for i in range(1, bench_config.runs + 1):
 
                 log_folder = Path(bench_config.name, config_name, instance_name, f'run{i}')
-                os.makedirs(log_folder)
+                if os.path.exists(log_folder):
+                    if not bench_config.overwrite:
+                        print(f"Directory {os.path.realpath(log_folder)} exists. Exiting...")
+                        exit(2)
+                else:
+                    os.makedirs(log_folder)
 
                 job_file = 'start.sh'
                 job_path = log_folder / job_file
@@ -126,15 +137,41 @@ def main() -> None:
                 if bench_config.executable != None:
                     cmd += bench_config.executable
                     cmd += ' '
-                cmd += config + ' ' + data
+                cmd += config
 
                 shm_files = []
                 for m in re.finditer(r"\$file{([^}]*)}", cmd):
                     path = Path(m.group(1))
                     if working_dir != None:
-                        path = Path('~', os.path.relpath(working_dir, start=Path.home()), path)
+                        path = Path('~', os.path.relpath(working_dir, start=os.path.realpath(Path.home())), path)
                     shm_path = Path(shm_dir, 'input', path.name)
-                    shm_files += [(path,shm_path)]
+                    shm_files.append((path,shm_path))
+
+                data_split = data.split(';,| ')
+                collected = set()
+                uncompress = []
+                for e in data_split:
+                    if e in collected:
+                        print(f'Instance {e} was already added. Instances of the same name from different paths are currently not supported! Exiting...')
+                        exit(2)
+                    collected.add(e)
+                    if not os.path.isabs(e):
+                        instance_path = os.path.realpath(os.path.join(bench_config_dir,e))
+                    else:
+                        instance_path = e
+
+                    instance_path=Path('~',os.path.relpath(instance_path, start=os.path.realpath(Path.home())))
+                    shm_path = Path(shm_dir, 'input', os.path.basename(e))
+                    shm_files.append((Path(instance_path),shm_path))
+
+                    if e.lower().endswith('.lzma') or e.lower().endswith('.zip') or e.lower().endswith('.gz') or e.lower().endswith('.xz') or e.lower().endswith('.bz2'):
+                        shm_path_uncompr = os.path.splitext(e)[0]
+                        shm_path_uncompr = Path(shm_dir, 'input', os.path.basename(shm_path_uncompr))
+                        uncompress.append((shm_path,shm_path_uncompr))
+                    else:
+                        shm_path_uncompr = shm_path
+
+                    cmd += f' {shm_path_uncompr}'
 
                 occ = {}
                 for i, (p, sp) in enumerate(shm_files):
@@ -157,7 +194,7 @@ def main() -> None:
 
                 rs_time = bench_config.timeout+bench_config.slurm_time_buffer  
                 slurm_time = rs_time+bench_config.runsolver_kill_delay 
-                rs_cmd = f'{runsolver_str} -w runsolver.log -W {rs_time} -V {bench_config.mem_limit} -d {bench_config.runsolver_kill_delay}'
+                rs_cmd = f'{runsolver_str} -w runsolver.log -v varfile.log -W {rs_time} -V {bench_config.mem_limit} -d {bench_config.runsolver_kill_delay}'
                 solver_cmd =  f'{cmd} 2> stderr.log 1> stdout.log'
                 if bench_config.use_perf:
                     events_str = ','.join(PERF_EVENTS)
@@ -166,15 +203,39 @@ def main() -> None:
                     cmd = f'{rs_cmd} {perf} {PERF_PREFIX} {events_str} {solver_cmd}'
                 else:
                     cmd = f'{rs_cmd} {solver_cmd}'
+
+                log_folder=f'~/{os.path.relpath(log_folder, start=os.path.realpath(os.path.realpath(Path.home())))}'
     
                 with open(job_path, 'w') as file:
-                    file.write('#!/bin/sh\n\n')
+                    file.write('#!/usr/bin/env bash\n\n')
+                    file.write('uncompress () {\n')
+                    file.write('    filename=$1\n')
+                    file.write('    output=$2\n')
+                    file.write('    type=$(file -b --mime-type $filename)\n')
+                    file.write('    echo "Compressed file recognized as: " $type\n')
+                    file.write('\n')
+                    file.write('    if [ $type == "application/x-lzma" ] ; then\n')
+                    file.write('         prep_cmd="lzcat $filename"\n')
+                    file.write('    elif [ $type == "application/x-bzip2" ] ; then\n')
+                    file.write('         prep_cmd="bzcat $filename"\n')
+                    file.write('    elif [ $type == "application/x-xz" ] ; then\n')
+                    file.write('         prep_cmd="xzcat $filename"\n')
+                    file.write('    elif [ $type == "application/octet-stream" ] ; then\n')
+                    file.write('         prep_cmd="lzcat $filename"\n')
+                    file.write('    else\n')
+                    file.write('         prep_cmd="zcat -f $filename"\n')
+                    file.write('    fi\n')
+                    file.write('    echo "Preparing instance in $output"\n')
+                    file.write('    echo "$prep_cmd > $output"\n')
+                    file.write('    $prep_cmd > $output\n')
+                    file.write('}\n')
+                    file.write('\n')
                     file.write('_cleanup() {\n')
                     if working_dir != None and bench_config.symlink_working_dir:
                         file.write('\t# cleanup symlinks\n')
                         file.write('\tfind . -type l -delete\n')
                     file.write(f'\t# copy output into run dir\n')
-                    file.write(f'\tcp * ~/{os.path.relpath(log_folder, start=Path.home())}\n')
+                    file.write(f'\tcp * {log_folder}\n')
                     file.write('\t# cleanup shm files\n')
                     file.write(f'\trm -rf /dev/shm/{shm_uid}/\n')
                     file.write('}\n\n')
@@ -198,6 +259,9 @@ def main() -> None:
                     for orig_path,shm_path in shm_files:
                         file.write(f'cp {orig_path} {shm_path}\n')
 
+                    file.write('# uncompress input files\n')
+                    for shm_path, shm_path_uncompr in uncompress:
+                        file.write(f'uncompress {shm_path} {shm_path_uncompr}\n')
                     file.write('# store node info\n')
                     file.write('echo Date: $(date) > node_info.log\n')
                     file.write('echo Node: $(hostname) >> node_info.log\n')
@@ -220,7 +284,7 @@ def main() -> None:
         for p in start_scripts:
             file.write(str(p) + '\n')
 
-    bench_path = os.path.relpath(Path(bench_config.name), start=Path.home())
+    bench_path = os.path.relpath(Path(bench_config.name), start=os.path.realpath(Path.home()))
 
     with open(Path(bench_config.name, 'batch_job.slurm'), 'w') as file:
         file.write('#!/bin/bash\n')
@@ -229,6 +293,7 @@ def main() -> None:
         file.write(f'#SBATCH --time={datetime.timedelta(seconds=slurm_time)}\n')
         file.write(f'#SBATCH --partition={bench_config.partition}\n')
         file.write(f'#SBATCH --cpus-per-task={cpus}\n')
+        file.write(f'#SBATCH --mem-per-cpu={int(math.ceil(bench_config.mem_limit/cpus))}\n')
         file.write(f'#SBATCH --mem-per-cpu={int(math.ceil(bench_config.mem_limit/cpus))}\n')
         account = bench_config.billing
         if account:
@@ -266,7 +331,7 @@ def main() -> None:
     with open(submit_sh_path, 'w') as file:
         file.write('#!/bin/bash\n')
         file.write('#\n')
-        file.write(f'cd ~/{os.path.relpath(Path(bench_config.name), start=Path.home())}\n')
+        file.write(f'cd ~/{os.path.relpath(Path(bench_config.name), start=os.path.realpath(Path.home()))}\n')
         file.write(f'jid=$(sbatch --parsable batch_job.slurm)\n')
         file.write(f'sbatch --dependency=afterany:${{jid}} compress_results.slurm')
 

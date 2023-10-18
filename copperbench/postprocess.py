@@ -17,6 +17,7 @@ def process_bench(bench_folder: Union[Path, str], log_read_func: Callable[[Path]
         metadata = None
 
     regex_slurm = re.compile(r"Date:\s+(?P<slurm_date>.+)\nNode:\s+(?P<slurm_node>.+)\nCpus_allowed:\s+(?P<slurm_cpumask>.+)")
+    regex_runsolver = re.compile(r"(?s:.*)Max\. virtual memory \(cumulated for all children\) \(KiB\): (?P<runsolver_max_virt_mem_kb>\d+)\nMax\. memory \(cumulated for all children\) \(KiB\): (?P<runsolver_max_mem_kb>\d+)")
 
     data = []
     for config_dir in os.scandir(bench_folder):
@@ -40,6 +41,10 @@ def process_bench(bench_folder: Union[Path, str], log_read_func: Callable[[Path]
                                 if include_metrics:
                                     with open(Path(run_dir, 'node_info.log'), 'r') as file:
                                         match = regex_slurm.match(file.read())
+                                        if match != None:
+                                            entry = entry | match.groupdict()
+                                    with open(Path(run_dir, 'runsolver.log'), 'r') as file:
+                                        match = regex_runsolver.match(file.read())
                                         if match != None:
                                             entry = entry | match.groupdict()
                                     perf_log = Path(run_dir, 'perf.log')

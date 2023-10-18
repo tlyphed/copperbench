@@ -63,12 +63,17 @@ def main() -> None:
     args = parser.parse_args()
 
     bench_config_dir = os.path.dirname(os.path.realpath(args.bench_config_file))
-    with open(os.path.realpath(args.bench_config_file), 'r') as file:
-        bench_config = BenchConfig(**json.loads(file.read()))
+    with open(os.path.realpath(args.bench_config_file), 'r') as fh:
+        print(fh.name)
+        bench_config = BenchConfig(**json.loads(fh.read()))
 
     working_dir = None
     if bench_config.working_dir != None:
-        working_dir = os.path.relpath(os.path.realpath(bench_config.working_dir), start=os.path.realpath(Path.home()))
+        if os.path.isabs(bench_config.working_dir) or bench_config.working_dir.startswith('~'):
+            working_dir = os.path.expanduser(bench_config.working_dir)
+        else:
+            wd = Path(os.path.dirname(args.bench_config_file),bench_config.working_dir)
+            working_dir = os.path.relpath(os.path.realpath(wd), start=os.path.realpath(Path.home()))
 
     if bench_config.initial_seed != None:
         random.seed(bench_config.initial_seed)
@@ -135,8 +140,9 @@ def main() -> None:
         for config_name, config in configs.items():
             config = "" if config == "None" else config
             for instance_name, data in instances.items():
+                if data.startswith('#') or data.startswith('%'):
+                    continue
                 for i in range(1, bench_config.runs + 1):
-
                     log_folder = Path(dir_prefix, benchmark_name, config_name, instance_name, f'run{i}')
                     if os.path.exists(log_folder):
                         if not bench_config.overwrite:
@@ -159,9 +165,11 @@ def main() -> None:
 
                     shm_files = []
                     for m in re.finditer(r"\$file{([^}]*)}", cmd):
-                        path = Path(m.group(1))
-                        if working_dir != None:
+                        path = m.group(1)
+                        if working_dir is not None and not path.startswith('~') and not os.path.isabs(path):
                             path = Path('~', os.path.relpath(working_dir, start=os.path.realpath(Path.home())), path)
+                        else:
+                            path=Path(path)
                         shm_path = Path(shm_dir, 'input', path.name)
                         shm_files.append((path, shm_path))
 
@@ -174,9 +182,17 @@ def main() -> None:
                                 f'Instance {e} was already added. Instances of the same name from different paths are currently not supported! Exiting...')
                             exit(2)
                         collected.add(e)
-                        instance_path = Path(e)
-                        if working_dir != None:
-                            instance_path = Path('~', os.path.relpath(working_dir, start=os.path.realpath(Path.home())), instance_path)
+
+                        if os.path.isabs(os.path.expanduser(e)):
+                            instance_path = Path(e)
+                        else:
+                            if working_dir is not None:
+                                instance_path = os.path.realpath(os.path.expanduser(Path('~',working_dir,e)))
+                                instance_path = Path('~',os.path.relpath(instance_path, start=os.path.realpath(Path.home())))
+                            else:
+                                instance_dir = os.path.realpath(os.path.join(bench_config_dir,e))
+                                instance_path = Path('~',os.path.relpath(instance_dir, start=os.path.realpath(Path.home())))
+
                         shm_path = Path(shm_dir, 'input', os.path.basename(e))
                         shm_files.append((Path(instance_path), shm_path))
 

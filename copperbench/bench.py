@@ -300,8 +300,8 @@ def main() -> None:
         if bench_config.cache_pinning:
             file.write(f'#SBATCH --gres=cache:{cache_lines}\n')
         file.write(f'#SBATCH --cpu-freq={bench_config.cpu_freq*1000}-{bench_config.cpu_freq*1000}:performance\n')
-        file.write(f'#SBATCH --output={bench_config.name}_slurm.log\n')
-        file.write(f'#SBATCH --error={bench_config.name}_slurm.log\n')
+        file.write(f'#SBATCH --output=slurm.log\n')
+        file.write(f'#SBATCH --error=slurm.log\n')
         if bench_config.max_parallel_jobs:
             file.write(f'#SBATCH --array=1-{len(start_scripts)}%{bench_config.max_parallel_jobs}\n')
         else:

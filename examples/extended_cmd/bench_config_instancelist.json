@@ -1,0 +1,20 @@
+{
+  "name": "test1_list",
+  "configs": "configs_1.txt",
+  "instances": [
+    "instances_1.txt",
+    "instances_2.txt",
+    "#skipped.txt"
+  ],
+  "overwrite": true,
+  "timeout": 60,
+  "mem_limit": 25600,
+  "request_cpus": 4,
+  "runs": 1,
+  "runsolver_kill_delay": 10,
+  "slurm_time_buffer": 5,
+  "timeout_factor": 1,
+  "cache_pinning": false,
+  "cpus_per_node": 24,
+  "max_parallel_jobs": 8
+}

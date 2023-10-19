@@ -99,8 +99,10 @@ def main() -> None:
     elif isinstance(instance_conf, dict):
         instance_dict = instance_conf
         dir_prefix = f'{bench_config.name}/'
+
     for benchmark_name, instancelist_filename in instance_dict.items():
-        if benchmark_name.startswith("%") or benchmark_name.startswith("#"):
+        if (benchmark_name.startswith("%") or benchmark_name.startswith("#") or
+                instancelist_filename.startswith("%") or instancelist_filename.startswith("#")):
             continue
         if os.path.isabs(instancelist_filename):
             instance_path = instancelist_filename
@@ -139,14 +141,17 @@ def main() -> None:
         metadata = {'instances': instances, 'configs': configs}
 
         start_scripts = []
-
+        config_line = 0
         for config_name, config in configs.items():
+            config_line += 1
             config = "" if config == "None" else config
-            for instance_name, data in instances.items():
-                if data.startswith('#') or data.startswith('%'):
+            instance_config_line = 0
+            for input_name, input_line in instances.items():
+                instance_config_line += 1
+                if input_line.startswith('#') or input_line.startswith('%'):
                     continue
                 for i in range(1, bench_config.runs + 1):
-                    log_folder = Path(dir_prefix, benchmark_name, config_name, instance_name, f'run{i}')
+                    log_folder = Path(dir_prefix, benchmark_name, config_name, input_name, f'run{i}')
                     if os.path.exists(log_folder):
                         if not bench_config.overwrite:
                             print(f"Directory {os.path.realpath(log_folder)} exists. Exiting...")
@@ -176,17 +181,17 @@ def main() -> None:
                         shm_path = Path(shm_dir, 'input', path.name)
                         shm_files.append((path, shm_path))
 
-                    data_split = re.split('[;, ]', data)
-                    collected = set()
+                    data_split = re.split('[;, ]', input_line)
+                    collected = {}
                     uncompress = []
                     cmd_instances = []
                     for e in data_split:
-                        if e in collected:
+                        if e in collected.keys() and collected[e] != os.path.realpath(e):
                             print(
                                 f'Instance {e} was already added. Instances of the same name from different paths are '
                                 f'currently not supported! Exiting...')
                             exit(2)
-                        collected.add(e)
+                        collected[e] = os.path.realpath(e)
 
                         if os.path.isabs(os.path.expanduser(e)):
                             instance_path = Path(e)
@@ -215,8 +220,17 @@ def main() -> None:
                     for m in re.finditer(r"\$[1-9][0-9]*", cmd):
                         grp = m.group(0)
                         idx = int(grp[1:])
-                        cmd = cmd.replace(grp, f'{cmd_instances[idx - 1]}')
+                        try:
+                            cmd = cmd.replace(grp, f'{cmd_instances[idx - 1]}')
+                        except IndexError as e:
+                            print(
+                                f"Config: '{os.path.basename(config_path)}:L{config_line}' contained '${idx}', "
+                                f"but instance file '{instancelist_filename}:L{instance_config_line}' "
+                                f"was missing an file ${idx}.\n........Content was '{input_line}'.")
+                            print(f"Exiting!")
+                            exit(2)
                         cmd_instances_used.add(idx - 1)
+
                     for j, v in enumerate(cmd_instances):
                         if j in cmd_instances_used:
                             continue
@@ -305,7 +319,7 @@ def main() -> None:
                             file.write('touch runsolver.log stdout.log stderr.log\n')
                             file.write('# create symlinks for working directory\n')
                             file.write(f'ln -s ~/{working_dir}/* .\n')
-                        file.write('# move data into shared mem\n')
+                        file.write('# move input_line into shared mem\n')
                         for orig_path, shm_path in shm_files:
                             file.write(f'cp {orig_path} {shm_path}\n')
 

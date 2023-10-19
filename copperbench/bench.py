@@ -104,6 +104,9 @@ def main() -> None:
         instance_dict = instance_conf
         dir_prefix = f'{bench_config.name}/'
 
+    rs_time = bench_config.timeout + bench_config.slurm_time_buffer
+    slurm_time = rs_time + bench_config.runsolver_kill_delay
+
     for benchmark_name, instancelist_filename in instance_dict.items():
         if (benchmark_name.startswith("%") or benchmark_name.startswith("#") or
                 instancelist_filename.startswith("%") or instancelist_filename.startswith("#")):
@@ -226,7 +229,7 @@ def main() -> None:
                         idx = int(grp[1:])
                         try:
                             cmd = cmd.replace(grp, f'{cmd_instances[idx - 1]}')
-                        except IndexError as e:
+                        except IndexError as _:
                             print(
                                 f"Config: '{os.path.basename(config_path)}:L{config_line}' contained '${idx}', "
                                 f"but instance file '{instancelist_filename}:L{instance_config_line}' "
@@ -259,8 +262,6 @@ def main() -> None:
                     runsolver_str = Path(shm_dir, 'input', rs_file)
                     shm_files += [(Path(bench_config.runsolver_path), runsolver_str)]
 
-                    rs_time = bench_config.timeout + bench_config.slurm_time_buffer
-                    slurm_time = rs_time + bench_config.runsolver_kill_delay
                     rs_cmd = (f'{runsolver_str} -w runsolver.log -v varfile.log -W {rs_time}'
                               f' -V {bench_config.mem_limit} -d {bench_config.runsolver_kill_delay}')
                     solver_cmd = f'{cmd} 2> stderr.log 1> stdout.log'
@@ -296,46 +297,27 @@ def main() -> None:
                 file.write(str(p) + '\n')
 
         bench_path = os.path.relpath(Path(dir_prefix, benchmark_name), start=starthome)
-
-        with open(Path(dir_prefix, benchmark_name, 'batch_job.slurm'), 'w') as file:
-            file.write('#!/bin/bash\n')
-            file.write('#\n')
-            file.write(f'#SBATCH --job-name={benchmark_name}\n')
-            file.write(f'#SBATCH --time={datetime.timedelta(seconds=slurm_time)}\n')
-            file.write(f'#SBATCH --partition={bench_config.partition}\n')
-            file.write(f'#SBATCH --cpus-per-task={cpus}\n')
-            file.write(f'#SBATCH --mem-per-cpu={int(math.ceil(bench_config.mem_limit / cpus))}\n')
-            file.write(f'#SBATCH --mem-per-cpu={int(math.ceil(bench_config.mem_limit / cpus))}\n')
-            if bench_config.email:
-                file.write(f'#SBATCH --mail-user={bench_config.email}\n')
-                file.write(f"#SBATCH --mail-type=end\n")
-            account = bench_config.billing
-            if account:
-                file.write(f'#SBATCH --account={account}\n')
-            if bench_config.cache_pinning:
-                file.write(f'#SBATCH --gres=cache:{cache_lines}\n')
-            file.write(
-                f'#SBATCH --cpu-freq={bench_config.cpu_freq * 1000}-{bench_config.cpu_freq * 1000}:performance\n')
-            if bench_config.write_scheuler_logs:
-                # environment variable HOME is required as absolute paths on HPC environments differ occasionally
-                output_path = f"{os.environ['HOME']}/{os.path.relpath(os.path.abspath(bench_path))}/slurm_logs"
-                if not os.path.exists(output_path):
-                    os.makedirs(output_path)
-                file.write(f'#SBATCH --output={output_path}/slurm-stdout_%A_%a.log\n')
-                file.write(f'#SBATCH --error={output_path}/slurm-stderr_%A_%a.log\n\n')
-            else:
-                file.write(f'#SBATCH --output=/dev/null\n')
-                file.write(f'#SBATCH --error=/dev/null\n')
-            if bench_config.max_parallel_jobs:
-                file.write(f'#SBATCH --array=1-{len(start_scripts)}%{bench_config.max_parallel_jobs}\n')
-            else:
-                file.write(f'#SBATCH --array=1-{len(start_scripts)}\n')
-            if bench_config.exclusive:
-                file.write(f"#SBATCH --exclusive=user\n")
-            file.write('#SBATCH --ntasks=1\n\n')
-            file.write(f'cd ~/{bench_path}\n')
-            file.write('start=$( awk "NR==$SLURM_ARRAY_TASK_ID" start_list.txt )\n')
-            file.write('srun $start')
+        start_template = templateEnv.get_template('batch_job.slurm.jinja2')
+        slurm_timeout = datetime.timedelta(seconds=slurm_time)
+        mem_per_cpu = int(math.ceil(bench_config.mem_limit / cpus))
+        min_freq = bench_config.cpu_freq * 1000
+        max_freq = bench_config.cpu_freq * 1000
+        output_path = f"{os.environ['HOME']}/{os.path.relpath(os.path.abspath(bench_path))}/slurm_logs"
+        if not os.path.exists(output_path):
+            os.makedirs(output_path)
+        outputText = start_template.render(benchmark_name=benchmark_name, slurm_timeout=slurm_timeout,
+                                           partition=bench_config.partition, cpus_per_task=cpus,
+                                           mem_per_cpu=mem_per_cpu, email=bench_config.email,
+                                           account=bench_config.billing,
+                                           cache_pinning=bench_config.cache_pinning, cache_lines=cache_lines,
+                                           min_freq=min_freq, max_freq=max_freq,
+                                           write_scheduler_logs=bench_config.write_scheuler_logs,
+                                           output_path=output_path,
+                                           max_parallel_jobs=bench_config.max_parallel_jobs,
+                                           lstart_scripts=len(start_scripts), exclusive=bench_config.exclusive,
+                                           bench_path=bench_path, bench_config=bench_config)
+        with open(Path(dir_prefix, benchmark_name, 'batch_job.slurm'), 'w') as fh:
+            fh.write(outputText)
 
         with open(Path(dir_prefix, benchmark_name, 'compress_results.slurm'), 'w') as file:
             file.write('#!/bin/bash\n')

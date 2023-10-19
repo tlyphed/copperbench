@@ -1,0 +1,40 @@
+#!/bin/bash
+#
+#SBATCH --job-name={{ benchmark_name }}
+#SBATCH --time={{ slurm_timeout }}
+#SBATCH --partition={{ bench_config.partition }}
+#SBATCH --cpus-per-task={{ cpus_per_task }}
+#SBATCH --mem-per-cpu={{ mem_per_cpu }}
+#SBATCH --mem-per-cpu={{ mem_per_cpu }}
+{%- if email is not none %}
+#SBATCH --mail-user={{ email }}
+#SBATCH --mail-type=end
+{%- endif %}
+{%- if account is not none%}
+#SBATCH --account={{ account }}
+{%- endif %}
+{%- if cache_pinning %}
+#SBATCH --gres=cache:{{ cache_lines }}
+{%- endif %}
+#SBATCH --cpu-freq={{ min_freq }}-{{ max_freq }}:performance
+{%- if write_scheduler_logs is not none %}
+{#- environment variable HOME is required as absolute paths on HPC environments differ occasionally #}
+#SBATCH --output={{ output_path }}/slurm-stdout_%A_%a.log
+#SBATCH --error={{ output_path }}/slurm-stderr_%A_%a.log
+{%- else %}
+#SBATCH --output=/dev/null
+#SBATCH --error=/dev/null
+{%- endif %}
+{% if max_parallel_jobs is not none %}
+#SBATCH --array=1-{{ lstart_scripts }}%{{ max_parallel_jobs }}
+{%- else %}
+#SBATCH --array=1-{{ lstart_scripts }}
+{%- endif %}
+{%- if exclusive %}:
+#SBATCH --exclusive=user
+{%- endif %}
+#SBATCH --ntasks=1
+
+cd ~/{{ bench_path }}
+start=$( awk "NR==$SLURM_ARRAY_TASK_ID" start_list.txt )
+srun $start

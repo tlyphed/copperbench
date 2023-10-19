@@ -39,6 +39,7 @@ _term() {
 }
 
 trap _term SIGTERM
+trap _cleanup EXIT
 
 # change into job directory
 mkdir {{ shm_dir }}
@@ -68,4 +69,3 @@ cat /proc/self/status | grep Cpus_allowed: >> node_info.log
 {{ cmd }} &
 child=$!
 wait "$child"
-_cleanup

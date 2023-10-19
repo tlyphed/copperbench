@@ -67,6 +67,11 @@ uncompress {{ shm_path }} {{ shm_path_uncompr }}
 echo Date: $(date) > node_info.log
 echo Node: $(hostname) >> node_info.log
 echo Input: "{{ input_line }}" >> node_info.log
+echo GCC: $(gcc --version | head -n1) >> node_info.log
+echo Kernel: $(uname -r) >> node_info.log
+echo $(cat /proc/meminfo  | grep MemTotal) >> node_info.log
+echo $(cat /proc/cpuinfo  | egrep "^model name|^cache size" | head -2) >> node_info.log
+
 cat /proc/self/status | grep Cpus_allowed: >> node_info.log
 if test -f "00_finished"; then
     echo ">>>Solver already finished before. File '00_finished' exists."

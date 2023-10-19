@@ -293,6 +293,10 @@ def main() -> None:
 
         with open(Path(dir_prefix, benchmark_name, 'start_list.txt'), 'w') as file:
             for p in start_scripts:
+                #hack: if we have a prefix, we need to cut the first folder
+                if dir_prefix != '':
+                    idx = str(p).find(dir_prefix)
+                    p = '/'.join(str(p).split('/')[1:])
                 file.write(str(p) + '\n')
 
         bench_path = os.path.relpath(Path(dir_prefix, benchmark_name), start=starthome)

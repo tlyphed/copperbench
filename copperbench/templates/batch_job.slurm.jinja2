@@ -19,8 +19,8 @@
 #SBATCH --cpu-freq={{ min_freq }}-{{ max_freq }}:performance
 {%- if write_scheduler_logs is not none %}
 {#- environment variable HOME is required as absolute paths on HPC environments differ occasionally #}
-#SBATCH --output={{ output_path }}/slurm-stdout_%A_%a.log
-#SBATCH --error={{ output_path }}/slurm-stderr_%A_%a.log
+#SBATCH --output={{ output_path }}/slurm-%A_%a_stdout.log
+#SBATCH --error={{ output_path }}/slurm-%A_%a_stderr.log
 {%- else %}
 #SBATCH --output=/dev/null
 #SBATCH --error=/dev/null

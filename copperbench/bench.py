@@ -58,6 +58,7 @@ class BenchConfig:
     overwrite: bool = False
     email: Optional[str] = None
     write_scheuler_logs: Optional[bool] = True
+    cmd_cwd: Optional[bool] = False
 
 
 def main() -> None:
@@ -151,6 +152,9 @@ def main() -> None:
         for config_name, config in configs.items():
             config_line += 1
             config = "" if config == "None" else config
+            if not os.path.isabs(os.path.expanduser(config)) and not config.startswith('$'):
+                config=str(Path('~',os.path.relpath(Path(bench_config_dir,config),start=starthome)))
+                
             instance_config_line = 0
             for input_name, input_line in instances.items():
                 instance_config_line += 1
@@ -178,8 +182,12 @@ def main() -> None:
                     cmd += config
 
                     shm_files = []
-                    for m in re.finditer(r"\$file{([^}]*)}", cmd):
-                        path = m.group(1)
+                    for m in re.finditer(r"\$(file|folder){([^}]*)}", cmd):
+                        if m.group(1) == 'folder':
+                            folder=True
+                        else:
+                            folder=False
+                        path = m.group(2)
                         if os.path.isabs(os.path.expanduser(path)):
                             path = Path(path)
                         else:
@@ -189,9 +197,13 @@ def main() -> None:
                             else:
                                 dir_name = os.path.realpath(os.path.join(bench_config_dir, path))
                                 path = Path('~', os.path.relpath(dir_name, start=starthome))
-
-                        shm_path = Path(shm_dir, 'input', path.name)
-                        shm_files.append((path, shm_path))
+                        path = os.path.dirname(path)
+                        if folder:
+                            shm_path = Path(shm_dir, 'input')
+                            shm_files.append((f'-r {path}/*',shm_path))
+                        else:
+                            shm_path = Path(shm_dir, 'input', path.name)
+                            shm_files.append((path, shm_path))
 
                     data_split = re.split('[;, ]', input_line)
                     collected = {}
@@ -258,7 +270,12 @@ def main() -> None:
                             occ[sp.name] = 1
 
                     for _, f in shm_files:
-                        cmd = re.sub(r"\$file{([^}]*)}", str(f), cmd, 1)
+                        cmd = re.sub(r"\$(file){([^}]*)}", str(f), cmd, 2)
+                        repl=''
+                        for m in re.finditer(r"\$folder{([^}]*)}", cmd):
+                            repl=f"{str(f)}/{os.path.basename(m.group(1))}"
+                            break
+                        cmd = re.sub(r"\$folder{([^}]*)}", repl, cmd, 2)
 
                     cmd = re.sub(r"\$timeout", str(bench_config.timeout * bench_config.timeout_factor), cmd)
                     cmd = re.sub(r"\$seed", str(random.randint(0, 2 ** 32)), cmd)
@@ -280,7 +297,8 @@ def main() -> None:
                                                        perf_prefix=PERF_PREFIX,
                                                        rs_time=rs_time, mem_limit=bench_config.mem_limit,
                                                        runsolver_kill_delay=bench_config.runsolver_kill_delay,
-                                                       input_line=input_line)
+                                                       input_line=input_line, cmd_cwd=bench_config.cmd_cwd,
+                                                       cmd_dir=os.path.dirname(cmd.split(' ')[0]))
                     with open(f"{job_path}", 'w') as fh:
                         fh.write(outputText)
 

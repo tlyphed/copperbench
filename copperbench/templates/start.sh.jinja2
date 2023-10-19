@@ -79,12 +79,19 @@ if test -f "00_finished"; then
     echo ">>>...stopping here..."
     exit 4
 fi
+
+{%- if cmd_cwd %}
+pushd {{ cmd_dir }}
+{%- endif %}
 # execute run
 {%- if use_perf %}
-{{ runsolver_str }} -w runsolver.log -v varfile.log -W {{ rs_time }} --rss-swap-limit {{ mem_limit }} -d {{ runsolver_kill_delay }} /usr/bin/perf {{ perf_prefix }} {{ perf_events }} {{ solver_cmd }} 2> stderr.log 1> stdout.log &
+{{ runsolver_str }} -w {{ shm_dir }}/output/runsolver.log -v {{ shm_dir }}/output/varfile.log -W {{ rs_time }} --rss-swap-limit {{ mem_limit }} -d {{ runsolver_kill_delay }} /usr/bin/perf {{ perf_prefix }} {{ perf_events }} {{ solver_cmd }} 2> {{ shm_dir }}/output/stderr.log 1> {{ shm_dir }}/output/stdout.log &
 {%- else %}
-{{ runsolver_str }} -w runsolver.log -v varfile.log -W {{ rs_time }} --rss-swap-limit {{ mem_limit }} -d {{ runsolver_kill_delay }} {{ solver_cmd }} 2> stderr.log 1> stdout.log &
+{{ runsolver_str }} -w {{ shm_dir }}/output/runsolver.log -v {{ shm_dir }}/output/varfile.log -W {{ rs_time }} --rss-swap-limit {{ mem_limit }} -d {{ runsolver_kill_delay }} {{ solver_cmd }} 2> {{ shm_dir }}/output/stderr.log 1> {{ shm_dir }}/output/stdout.log &
 {%- endif  %}
 child=$!
 wait "$child"
+{%- if cmd_cwd %}
+popd
+{%- endif %}
 touch 00_finished

@@ -65,6 +65,7 @@ copperbench then creates the following folder structure and files:
    |__ ...
 |__config2
 |__ ...
+|__slurm_logs
 |__metadata.json
 |__start_list.txt
 |__batch_job.slurm
@@ -75,7 +76,7 @@ copperbench then creates the following folder structure and files:
 The file `batch_job.slurm` can then be submitted with `sbatch` to schedule each `start.sh` and `compress_results.slurm` can be submitted to tar the whole benchmark folder for easier download.
 Furthermore, calling the script `submit_all.sh` schedules both `batch_job.slurm` and `compress_results.slurm` such that the compression is only performed after all runs have finished.
 
-The config and instance folders are numbered in the given order, but cobrabench also creates a json file `metadata.json` linking them to what was specified in `config.txt` and `instances.txt`.
+The config and instance folders are numbered in the given order, but copperbench also creates a json file `metadata.json` linking them to what was specified in `config.txt` and `instances.txt`.
 
 An example of how the results can be processed is given [here](examples/tlsp/evaluation.py). Do not do this on the cluster, but rather copy the files to your machine first.
 

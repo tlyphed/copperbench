@@ -1,0 +1,2 @@
+instance1.cnf.bz2
+instance2.cnf

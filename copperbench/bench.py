@@ -326,7 +326,8 @@ def main() -> None:
 
         compress_results_slurm = templateEnv.get_template('compress_results.slurm.jinja2')
         outputText = compress_results_slurm.render(benchmark_name=benchmark_name, partition=bench_config.partition,
-                                                   bench_path=bench_path, dir_prefix=dir_prefix)
+                                                   bench_path=bench_path, dir_prefix=dir_prefix,
+                                                   write_scheduler_logs=bench_config.write_scheuler_logs)
         with open(Path(dir_prefix, benchmark_name, 'compress_results.slurm'), 'w') as fh:
             fh.write(outputText)
 

@@ -3,8 +3,13 @@
 #SBATCH --job-name={{ benchmark_name }}_compress
 #SBATCH --partition={{ partition }}
 #SBATCH --cpus-per-task=1
+{%- if write_scheduler_logs is not none %}
+#SBATCH --output={{ output_path }}/slurm_compress-stdout_%A_%a.log
+#SBATCH --error={{ output_path }}/slurm_compress-stderr_%A_%a.log
+{%- else %}
 #SBATCH --output=/dev/null
 #SBATCH --error=/dev/null
+{%- endif %}
 #SBATCH --ntasks=1
 
 cd ~/{{ bench_path }}

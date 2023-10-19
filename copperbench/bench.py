@@ -184,10 +184,6 @@ def main() -> None:
                                 dir = os.path.realpath(os.path.join(bench_config_dir, path))
                                 path = Path('~', os.path.relpath(dir, start=starthome))
 
-                        # if working_dir is not None and not path.startswith('~') and not os.path.isabs(path):
-                        #     path = Path('~', os.path.relpath(working_dir, start=starthome), path)
-                        # else:
-                        #     path = Path(path)
                         shm_path = Path(shm_dir, 'input', path.name)
                         shm_files.append((path, shm_path))
 

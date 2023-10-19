@@ -74,7 +74,12 @@ if test -f "00_finished"; then
     exit 4
 fi
 # execute run
-{{ cmd }} &
+# TODO: change memory limit to resident set size
+{%- if use_perf %}
+{{ runsolver_str }} -w runsolver.log -v varfile.log -W {{ rs_time }} -V {{ mem_limit }} -d {{ runsolver_kill_delay }} /usr/bin/perf {{ perf_prefix }} {{ perf_events }} {{ solver_cmd }} 2> stderr.log 1> stdout.log &
+{%- else %}
+{{ runsolver_str }} -w runsolver.log -v varfile.log -W {{ rs_time }} -V {{ mem_limit }} -d {{ runsolver_kill_delay }} {{ solver_cmd }} 2> stderr.log 1> stdout.log &
+{%- endif  %}
 child=$!
 wait "$child"
 touch 00_finished

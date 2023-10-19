@@ -266,28 +266,20 @@ def main() -> None:
                     rs_file = Path(bench_config.runsolver_path).name
                     runsolver_str = Path(shm_dir, 'input', rs_file)
                     shm_files += [(Path(bench_config.runsolver_path), runsolver_str)]
-
-                    #TODO(jf): move runsolver + perf into template for better readability
-                    rs_cmd = (f'{runsolver_str} -w runsolver.log -v varfile.log -W {rs_time}'
-                              f' -V {bench_config.mem_limit} -d {bench_config.runsolver_kill_delay}')
-                    solver_cmd = f'{cmd} 2> stderr.log 1> stdout.log'
-                    if bench_config.use_perf:
-                        events_str = ','.join(PERF_EVENTS)
-                        perf = Path(shm_dir, 'input', 'perf')
-                        shm_files += [(Path('/', 'usr', 'bin', 'perf'), perf)]
-                        cmd = f'{rs_cmd} {perf} {PERF_PREFIX} {events_str} {solver_cmd}'
-                    else:
-                        cmd = f'{rs_cmd} {solver_cmd}'
-
+                    events_str = ','.join(PERF_EVENTS)
                     log_folder = f'~/{os.path.relpath(log_folder, start=starthome)}'
-
                     start_template = templateEnv.get_template('start.sh.jinja2')
                     symlink_working_dir = working_dir is not None and bench_config.symlink_working_dir
                     outputText = start_template.render(working_dir=working_dir,
                                                        symlink_working_dir=symlink_working_dir,
                                                        log_folder=log_folder, shm_uid=shm_uid, shm_dir=shm_dir,
                                                        shm_files=shm_files,
-                                                       uncompress=uncompress, cmd=cmd)
+                                                       uncompress=uncompress,
+                                                       use_perf=bench_config.use_perf, perf_events=events_str,
+                                                       solver_cmd=cmd, runsolver_str=runsolver_str,
+                                                       perf_prefix=PERF_PREFIX,
+                                                       rs_time=rs_time, mem_limit=bench_config.mem_limit,
+                                                       runssolver_kill_delay=bench_config.runsolver_kill_delay)
                     with open(f"{job_path}", 'w') as fh:
                         fh.write(outputText)
 

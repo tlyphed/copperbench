@@ -1,15 +1,17 @@
-import os
-import stat
-import random
-import math
-import json
-import datetime
-from pathlib import Path
-from typing import Optional, List
-from dataclasses import dataclass
+#!/usr/bin/false
 import argparse
-import uuid
+import datetime
+import json
+import math
+import os
+import random
 import re
+import stat
+import uuid
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Optional
+
 from .__version__ import __version__
 
 PERF_PREFIX = f'stat -o perf.log -B -e'
@@ -63,19 +65,22 @@ def main() -> None:
     args = parser.parse_args()
 
     bench_config_dir = os.path.dirname(os.path.realpath(args.bench_config_file))
-    with open(os.path.realpath(args.bench_config_file), 'r') as fh:
+    with open(os.path.realpath(args.bench_config_file)) as fh:
         print(fh.name)
         bench_config = BenchConfig(**json.loads(fh.read()))
 
+    starthome = os.path.realpath(Path.home())
+
     working_dir = None
-    if bench_config.working_dir != None:
-        if os.path.isabs(bench_config.working_dir) or bench_config.working_dir.startswith('~'):
+    if bench_config.working_dir is not None:
+        if (os.path.isabs(bench_config.working_dir) or
+                (isinstance(bench_config.working_dir, str) and bench_config.working_dir.startswith('~'))):
             working_dir = os.path.expanduser(bench_config.working_dir)
         else:
-            wd = Path(os.path.dirname(args.bench_config_file),bench_config.working_dir)
-            working_dir = os.path.relpath(os.path.realpath(wd), start=os.path.realpath(Path.home()))
+            wd = Path(os.path.dirname(args.bench_config_file), bench_config.working_dir)
+            working_dir = os.path.relpath(os.path.realpath(wd), start=starthome)
 
-    if bench_config.initial_seed != None:
+    if bench_config.initial_seed is not None:
         random.seed(bench_config.initial_seed)
 
     cpus = int(math.ceil(bench_config.request_cpus / (bench_config.cpus_per_node / bench_config.mem_lines))
@@ -103,7 +108,7 @@ def main() -> None:
             instance_path = f'{bench_config_dir}/{instancelist_filename}'
 
         instances = {}
-        with open(instance_path, 'r') as file:
+        with open(instance_path) as file:
             i = 1
             for line in file:
                 instance = line.strip()
@@ -116,7 +121,7 @@ def main() -> None:
             config_path = bench_config.configs
         else:
             config_path = f'{bench_config_dir}/{bench_config.configs}'
-        with open(config_path, 'r') as file:
+        with open(config_path) as file:
             i = 1
             for line in file:
                 config = line.strip()
@@ -131,9 +136,7 @@ def main() -> None:
         else:
             os.makedirs(f'{dir_prefix}{benchmark_name}')
 
-        metadata = {}
-        metadata['instances'] = instances
-        metadata['configs'] = configs
+        metadata = {'instances': instances, 'configs': configs}
 
         start_scripts = []
 
@@ -158,7 +161,7 @@ def main() -> None:
                     shm_dir = Path(f'/dev/shm/{shm_uid}/')
 
                     cmd = ''
-                    if bench_config.executable != None:
+                    if bench_config.executable is not None:
                         cmd += bench_config.executable
                         cmd += ' '
                     cmd += config
@@ -167,20 +170,21 @@ def main() -> None:
                     for m in re.finditer(r"\$file{([^}]*)}", cmd):
                         path = m.group(1)
                         if working_dir is not None and not path.startswith('~') and not os.path.isabs(path):
-                            path = Path('~', os.path.relpath(working_dir, start=os.path.realpath(Path.home())), path)
+                            path = Path('~', os.path.relpath(working_dir, start=starthome), path)
                         else:
-                            path=Path(path)
+                            path = Path(path)
                         shm_path = Path(shm_dir, 'input', path.name)
                         shm_files.append((path, shm_path))
 
-                    data_split = re.split(';|,| ', data)
+                    data_split = re.split('[;, ]', data)
                     collected = set()
                     uncompress = []
                     cmd_instances = []
                     for e in data_split:
                         if e in collected:
                             print(
-                                f'Instance {e} was already added. Instances of the same name from different paths are currently not supported! Exiting...')
+                                f'Instance {e} was already added. Instances of the same name from different paths are '
+                                f'currently not supported! Exiting...')
                             exit(2)
                         collected.add(e)
 
@@ -188,11 +192,11 @@ def main() -> None:
                             instance_path = Path(e)
                         else:
                             if working_dir is not None:
-                                instance_path = os.path.realpath(os.path.expanduser(Path('~',working_dir,e)))
-                                instance_path = Path('~',os.path.relpath(instance_path, start=os.path.realpath(Path.home())))
+                                instance_path = os.path.realpath(os.path.expanduser(Path('~', working_dir, e)))
+                                instance_path = Path('~', os.path.relpath(instance_path, start=starthome))
                             else:
-                                instance_dir = os.path.realpath(os.path.join(bench_config_dir,e))
-                                instance_path = Path('~',os.path.relpath(instance_dir, start=os.path.realpath(Path.home())))
+                                instance_dir = os.path.realpath(os.path.join(bench_config_dir, e))
+                                instance_path = Path('~', os.path.relpath(instance_dir, start=starthome))
 
                         shm_path = Path(shm_dir, 'input', os.path.basename(e))
                         shm_files.append((Path(instance_path), shm_path))
@@ -207,22 +211,22 @@ def main() -> None:
                             shm_path_uncompr = shm_path
                             cmd_instances.append(shm_path_uncompr)
 
-                    cmd_instances_used=set()
+                    cmd_instances_used = set()
                     for m in re.finditer(r"\$[1-9][0-9]*", cmd):
-                        grp=m.group(0)
-                        idx=int(grp[1:])
-                        cmd=cmd.replace(grp,f'{cmd_instances[idx-1]}')
-                        cmd_instances_used.add(idx-1)
-                    for i,v in enumerate(cmd_instances):
-                        if i in cmd_instances_used:
+                        grp = m.group(0)
+                        idx = int(grp[1:])
+                        cmd = cmd.replace(grp, f'{cmd_instances[idx - 1]}')
+                        cmd_instances_used.add(idx - 1)
+                    for j, v in enumerate(cmd_instances):
+                        if j in cmd_instances_used:
                             continue
-                        cmd+=f' {v}'
+                        cmd += f' {v}'
 
                     occ = {}
-                    for i, (p, sp) in enumerate(shm_files):
+                    for j, (p, sp) in enumerate(shm_files):
                         if sp.name in occ:
                             new_name = f'{sp.stem}{occ[sp.name]}{sp.suffix}'
-                            shm_files[i] = (p, sp.with_name(new_name))
+                            shm_files[j] = (p, sp.with_name(new_name))
                             occ[sp.name] += 1
                         else:
                             occ[sp.name] = 1
@@ -239,7 +243,8 @@ def main() -> None:
 
                     rs_time = bench_config.timeout + bench_config.slurm_time_buffer
                     slurm_time = rs_time + bench_config.runsolver_kill_delay
-                    rs_cmd = f'{runsolver_str} -w runsolver.log -v varfile.log -W {rs_time} -V {bench_config.mem_limit} -d {bench_config.runsolver_kill_delay}'
+                    rs_cmd = (f'{runsolver_str} -w runsolver.log -v varfile.log -W {rs_time}'
+                              f' -V {bench_config.mem_limit} -d {bench_config.runsolver_kill_delay}')
                     solver_cmd = f'{cmd} 2> stderr.log 1> stdout.log'
                     if bench_config.use_perf:
                         events_str = ','.join(PERF_EVENTS)
@@ -249,7 +254,7 @@ def main() -> None:
                     else:
                         cmd = f'{rs_cmd} {solver_cmd}'
 
-                    log_folder = f'~/{os.path.relpath(log_folder, start=os.path.realpath(os.path.realpath(Path.home())))}'
+                    log_folder = f'~/{os.path.relpath(log_folder, start=starthome)}'
 
                     with open(job_path, 'w') as file:
                         file.write('#!/usr/bin/env bash\n\n')
@@ -276,7 +281,7 @@ def main() -> None:
                         file.write('}\n')
                         file.write('\n')
                         file.write('_cleanup() {\n')
-                        if working_dir != None and bench_config.symlink_working_dir:
+                        if working_dir is not None and bench_config.symlink_working_dir:
                             file.write('\t# cleanup symlinks\n')
                             file.write('\tfind . -type l -delete\n')
                         file.write(f'\t# copy output into run dir\n')
@@ -295,7 +300,7 @@ def main() -> None:
                         file.write('mkdir input\n')
                         file.write('mkdir output\n')
                         file.write('cd output\n')
-                        if working_dir != None and bench_config.symlink_working_dir:
+                        if working_dir is not None and bench_config.symlink_working_dir:
                             file.write('# create log files (so that symlinks cannot interfere)\n')
                             file.write('touch runsolver.log stdout.log stderr.log\n')
                             file.write('# create symlinks for working directory\n')
@@ -329,7 +334,7 @@ def main() -> None:
             for p in start_scripts:
                 file.write(str(p) + '\n')
 
-        bench_path = os.path.relpath(Path(dir_prefix, benchmark_name), start=os.path.realpath(Path.home()))
+        bench_path = os.path.relpath(Path(dir_prefix, benchmark_name), start=starthome)
 
         with open(Path(dir_prefix, benchmark_name, 'batch_job.slurm'), 'w') as file:
             file.write('#!/bin/bash\n')
@@ -389,7 +394,7 @@ def main() -> None:
             file.write('#!/bin/bash\n')
             file.write('#\n')
             file.write(
-                f'cd ~/{os.path.relpath(Path(dir_prefix, benchmark_name), start=os.path.realpath(Path.home()))}\n')
+                f'cd ~/{os.path.relpath(Path(dir_prefix, benchmark_name), start=starthome)}\n')
             file.write(f'jid=$(sbatch --parsable batch_job.slurm)\n')
             file.write(f'sbatch --dependency=afterany:${{jid}} compress_results.slurm')
 

@@ -285,7 +285,7 @@ def main() -> None:
                         fh.write(outputText)
 
                     st = os.stat(job_path)
-                    os.chmod(job_path, st.st_mode | stat.S_IEXEC)
+                    os.chmod(job_path, st.st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
                     start_scripts += [Path(*job_path.parts[1:])]
 
         with open(Path(dir_prefix, benchmark_name, 'metadata.json'), 'w') as file:
@@ -331,4 +331,5 @@ def main() -> None:
         with open(submit_sh_path, 'w') as fh:
             fh.write(outputText)
 
-        os.chmod(submit_sh_path, st.st_mode | stat.S_IEXEC)
+        st = os.stat(submit_sh_path)
+        os.chmod(submit_sh_path, st.st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)

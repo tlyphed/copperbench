@@ -180,10 +180,16 @@ def main() -> None:
                     shm_files = []
                     for m in re.finditer(r"\$file{([^}]*)}", cmd):
                         path = m.group(1)
-                        if working_dir is not None and not path.startswith('~') and not os.path.isabs(path):
-                            path = Path('~', os.path.relpath(working_dir, start=starthome), path)
-                        else:
+                        if os.path.isabs(os.path.expanduser(path)):
                             path = Path(path)
+                        else:
+                            if working_dir is not None:
+                                path = os.path.realpath(os.path.expanduser(Path('~', working_dir, path)))
+                                path = Path('~', os.path.relpath(path, start=starthome))
+                            else:
+                                dir = os.path.realpath(os.path.join(bench_config_dir, path))
+                                path = Path('~', os.path.relpath(dir, start=starthome))
+
                         shm_path = Path(shm_dir, 'input', path.name)
                         shm_files.append((path, shm_path))
 

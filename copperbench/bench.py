@@ -320,17 +320,15 @@ def main() -> None:
 
         compress_results_slurm = templateEnv.get_template('compress_results.slurm.jinja2')
         outputText = compress_results_slurm.render(benchmark_name=benchmark_name, partition=bench_config.partition,
-                                               bench_path=bench_path, dir_prefix=dir_prefix)
+                                                   bench_path=bench_path, dir_prefix=dir_prefix)
         with open(Path(dir_prefix, benchmark_name, 'compress_results.slurm'), 'w') as fh:
             fh.write(outputText)
 
         submit_sh_path = Path(dir_prefix, benchmark_name, 'submit_all.sh')
-        with open(submit_sh_path, 'w') as file:
-            file.write('#!/bin/bash\n')
-            file.write('#\n')
-            file.write(
-                f'cd ~/{os.path.relpath(Path(dir_prefix, benchmark_name), start=starthome)}\n')
-            file.write(f'jid=$(sbatch --parsable batch_job.slurm)\n')
-            file.write(f'sbatch --dependency=afterany:${{jid}} compress_results.slurm')
+        submit_all = templateEnv.get_template('submit_all.sh.jinja2')
+        wd = os.path.relpath(Path(dir_prefix, benchmark_name), start=starthome)
+        outputText = submit_all.render(wd=wd)
+        with open(submit_sh_path, 'w') as fh:
+            fh.write(outputText)
 
         os.chmod(submit_sh_path, st.st_mode | stat.S_IEXEC)

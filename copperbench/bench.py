@@ -187,8 +187,8 @@ def main() -> None:
                                 path = os.path.realpath(os.path.expanduser(Path('~', working_dir, path)))
                                 path = Path('~', os.path.relpath(path, start=starthome))
                             else:
-                                dir = os.path.realpath(os.path.join(bench_config_dir, path))
-                                path = Path('~', os.path.relpath(dir, start=starthome))
+                                dir_name = os.path.realpath(os.path.join(bench_config_dir, path))
+                                path = Path('~', os.path.relpath(dir_name, start=starthome))
 
                         shm_path = Path(shm_dir, 'input', path.name)
                         shm_files.append((path, shm_path))

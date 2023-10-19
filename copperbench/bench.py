@@ -68,7 +68,6 @@ def main() -> None:
 
     bench_config_dir = os.path.dirname(os.path.realpath(args.bench_config_file))
     with open(os.path.realpath(args.bench_config_file)) as fh:
-        print(fh.name)
         bench_config = BenchConfig(**json.loads(fh.read()))
 
     starthome = os.path.realpath(Path.home())
@@ -297,7 +296,7 @@ def main() -> None:
                 file.write(str(p) + '\n')
 
         bench_path = os.path.relpath(Path(dir_prefix, benchmark_name), start=starthome)
-        start_template = templateEnv.get_template('batch_job.slurm.jinja2')
+        slurm_template = templateEnv.get_template('batch_job.slurm.jinja2')
         slurm_timeout = datetime.timedelta(seconds=slurm_time)
         mem_per_cpu = int(math.ceil(bench_config.mem_limit / cpus))
         min_freq = bench_config.cpu_freq * 1000
@@ -305,7 +304,7 @@ def main() -> None:
         output_path = f"{os.environ['HOME']}/{os.path.relpath(os.path.abspath(bench_path))}/slurm_logs"
         if not os.path.exists(output_path):
             os.makedirs(output_path)
-        outputText = start_template.render(benchmark_name=benchmark_name, slurm_timeout=slurm_timeout,
+        outputText = slurm_template.render(benchmark_name=benchmark_name, slurm_timeout=slurm_timeout,
                                            partition=bench_config.partition, cpus_per_task=cpus,
                                            mem_per_cpu=mem_per_cpu, email=bench_config.email,
                                            account=bench_config.billing,
@@ -315,22 +314,15 @@ def main() -> None:
                                            output_path=output_path,
                                            max_parallel_jobs=bench_config.max_parallel_jobs,
                                            lstart_scripts=len(start_scripts), exclusive=bench_config.exclusive,
-                                           bench_path=bench_path, bench_config=bench_config)
+                                           bench_path=bench_path)
         with open(Path(dir_prefix, benchmark_name, 'batch_job.slurm'), 'w') as fh:
             fh.write(outputText)
 
-        with open(Path(dir_prefix, benchmark_name, 'compress_results.slurm'), 'w') as file:
-            file.write('#!/bin/bash\n')
-            file.write('#\n')
-            file.write(f'#SBATCH --job-name={benchmark_name}_compress\n')
-            file.write(f'#SBATCH --partition={bench_config.partition}\n')
-            file.write(f'#SBATCH --cpus-per-task=1\n')
-            file.write(f'#SBATCH --output=/dev/null\n')
-            file.write(f'#SBATCH --error=/dev/null\n')
-            file.write('#SBATCH --ntasks=1\n\n')
-            file.write(f'cd ~/{bench_path}\n')
-            file.write('cd ..\n')
-            file.write(f'srun tar czf {dir_prefix}/{benchmark_name}.tar.gz {benchmark_name}\n')
+        compress_results_slurm = templateEnv.get_template('compress_results.slurm.jinja2')
+        outputText = compress_results_slurm.render(benchmark_name=benchmark_name, partition=bench_config.partition,
+                                               bench_path=bench_path, dir_prefix=dir_prefix)
+        with open(Path(dir_prefix, benchmark_name, 'compress_results.slurm'), 'w') as fh:
+            fh.write(outputText)
 
         submit_sh_path = Path(dir_prefix, benchmark_name, 'submit_all.sh')
         with open(submit_sh_path, 'w') as file:

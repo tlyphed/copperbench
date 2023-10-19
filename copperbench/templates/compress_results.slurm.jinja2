@@ -1,0 +1,12 @@
+#!/bin/bash
+#
+#SBATCH --job-name={{ benchmark_name }}_compress
+#SBATCH --partition={{ partition }}
+#SBATCH --cpus-per-task=1
+#SBATCH --output=/dev/null
+#SBATCH --error=/dev/null
+#SBATCH --ntasks=1
+
+cd ~/{{ bench_path }}
+cd ..
+srun tar czf {{ dir_prefix }}/{{ benchmark_name }}.tar.gz {{ benchmark_name }}

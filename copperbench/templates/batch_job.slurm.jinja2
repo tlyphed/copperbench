@@ -2,7 +2,7 @@
 #
 #SBATCH --job-name={{ benchmark_name }}
 #SBATCH --time={{ slurm_timeout }}
-#SBATCH --partition={{ bench_config.partition }}
+#SBATCH --partition={{ partition }}
 #SBATCH --cpus-per-task={{ cpus_per_task }}
 #SBATCH --mem-per-cpu={{ mem_per_cpu }}
 #SBATCH --mem-per-cpu={{ mem_per_cpu }}

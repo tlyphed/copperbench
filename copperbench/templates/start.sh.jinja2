@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+
+uncompress () {
+    filename=$1
+    output=$2
+    type=$(file -b --mime-type $filename)
+    echo "Compressed file recognized as: " $type
+
+    if [ $type == "application/x-lzma" ] ; then
+         prep_cmd="lzcat $filename"
+    elif [ $type == "application/x-bzip2" ] ; then
+         prep_cmd="bzcat $filename"
+    elif [ $type == "application/x-xz" ] ; then
+         prep_cmd="xzcat $filename"
+    elif [ $type == "application/octet-stream" ] ; then
+         prep_cmd="lzcat $filename"
+    else
+         prep_cmd="zcat -f $filename"
+    fi
+    echo "Preparing instance in $output"
+    echo "$prep_cmd > $output"
+    $prep_cmd > $output
+}
+
+_cleanup() {
+    {%- if symlink_working_dir %}
+    # cleanup symlinks
+    find . -type l -delete
+    {%- endif %}
+    # copy output into run dir
+    cp * {{ log_folder }}
+    # cleanup shm files
+    rm -rf /dev/shm/{{ shm_uid }}/
+}
+
+_term() {
+  kill -TERM "$child" 2>/dev/null
+  _cleanup
+}
+
+trap _term SIGTERM
+
+# change into job directory
+mkdir {{ shm_dir }}
+cd {{ shm_dir }}
+mkdir input
+mkdir output
+cd output
+{%- if symlink_working_dir %}
+# create log files (so that symlinks cannot interfere)
+touch runsolver.log stdout.log stderr.log
+# create symlinks for working directory
+ln -s ~/{{ working_dir }}/* .
+{%- endif %}
+# move inputs into shared mem
+{%- for orig_path, shm_path in shm_files %}
+cp {{ orig_path }} {{ shm_path }}
+{%- endfor %}
+# uncompress input files
+{%-  for shm_path, shm_path_uncompr in uncompress  %}
+uncompress {{ shm_path }} {{ shm_path_uncompr }}
+{%- endfor %}
+# store node info
+echo Date: $(date) > node_info.log
+echo Node: $(hostname) >> node_info.log
+cat /proc/self/status | grep Cpus_allowed: >> node_info.log
+# execute run
+{{ cmd }} &
+child=$!
+wait "$child"
+_cleanup

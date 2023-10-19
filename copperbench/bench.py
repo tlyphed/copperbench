@@ -12,6 +12,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
+import jinja2
+
 from .__version__ import __version__
 
 PERF_PREFIX = f'stat -o perf.log -B -e'
@@ -70,6 +72,8 @@ def main() -> None:
         bench_config = BenchConfig(**json.loads(fh.read()))
 
     starthome = os.path.realpath(Path.home())
+    templateLoader = jinja2.FileSystemLoader(searchpath=f"{os.path.dirname(__file__)}/templates/")
+    templateEnv = jinja2.Environment(loader=templateLoader)
 
     working_dir = None
     if bench_config.working_dir is not None:
@@ -270,72 +274,15 @@ def main() -> None:
 
                     log_folder = f'~/{os.path.relpath(log_folder, start=starthome)}'
 
-                    with open(job_path, 'w') as file:
-                        file.write('#!/usr/bin/env bash\n\n')
-                        file.write('uncompress () {\n')
-                        file.write('    filename=$1\n')
-                        file.write('    output=$2\n')
-                        file.write('    type=$(file -b --mime-type $filename)\n')
-                        file.write('    echo "Compressed file recognized as: " $type\n')
-                        file.write('\n')
-                        file.write('    if [ $type == "application/x-lzma" ] ; then\n')
-                        file.write('         prep_cmd="lzcat $filename"\n')
-                        file.write('    elif [ $type == "application/x-bzip2" ] ; then\n')
-                        file.write('         prep_cmd="bzcat $filename"\n')
-                        file.write('    elif [ $type == "application/x-xz" ] ; then\n')
-                        file.write('         prep_cmd="xzcat $filename"\n')
-                        file.write('    elif [ $type == "application/octet-stream" ] ; then\n')
-                        file.write('         prep_cmd="lzcat $filename"\n')
-                        file.write('    else\n')
-                        file.write('         prep_cmd="zcat -f $filename"\n')
-                        file.write('    fi\n')
-                        file.write('    echo "Preparing instance in $output"\n')
-                        file.write('    echo "$prep_cmd > $output"\n')
-                        file.write('    $prep_cmd > $output\n')
-                        file.write('}\n')
-                        file.write('\n')
-                        file.write('_cleanup() {\n')
-                        if working_dir is not None and bench_config.symlink_working_dir:
-                            file.write('\t# cleanup symlinks\n')
-                            file.write('\tfind . -type l -delete\n')
-                        file.write(f'\t# copy output into run dir\n')
-                        file.write(f'\tcp * {log_folder}\n')
-                        file.write('\t# cleanup shm files\n')
-                        file.write(f'\trm -rf /dev/shm/{shm_uid}/\n')
-                        file.write('}\n\n')
-                        file.write('_term() {\n')
-                        file.write('\tkill -TERM "$child" 2>/dev/null\n')
-                        file.write('\t_cleanup\n')
-                        file.write('}\n\n')
-                        file.write('trap _term SIGTERM\n\n')
-                        file.write('# change into job directory\n')
-                        file.write(f'mkdir {shm_dir}\n')
-                        file.write(f'cd {shm_dir}\n')
-                        file.write('mkdir input\n')
-                        file.write('mkdir output\n')
-                        file.write('cd output\n')
-                        if working_dir is not None and bench_config.symlink_working_dir:
-                            file.write('# create log files (so that symlinks cannot interfere)\n')
-                            file.write('touch runsolver.log stdout.log stderr.log\n')
-                            file.write('# create symlinks for working directory\n')
-                            file.write(f'ln -s ~/{working_dir}/* .\n')
-                        file.write('# move input_line into shared mem\n')
-                        for orig_path, shm_path in shm_files:
-                            file.write(f'cp {orig_path} {shm_path}\n')
-
-                        file.write('# uncompress input files\n')
-                        for shm_path, shm_path_uncompr in uncompress:
-                            file.write(f'uncompress {shm_path} {shm_path_uncompr}\n')
-                        file.write('# store node info\n')
-                        file.write('echo Date: $(date) > node_info.log\n')
-                        file.write('echo Node: $(hostname) >> node_info.log\n')
-                        file.write('cat /proc/self/status | grep Cpus_allowed: >> node_info.log\n')
-                        file.write('# execute run\n')
-
-                        file.write(cmd + ' &\n')
-                        file.write('child=$!\n')
-                        file.write('wait "$child"\n')
-                        file.write('_cleanup\n')
+                    start_template = templateEnv.get_template('start.sh.jinja2')
+                    symlink_working_dir = working_dir is not None and bench_config.symlink_working_dir
+                    outputText = start_template.render(working_dir=working_dir,
+                                                       symlink_working_dir=symlink_working_dir,
+                                                       log_folder=log_folder, shm_uid=shm_uid, shm_dir=shm_dir,
+                                                       shm_files=shm_files,
+                                                       uncompress=uncompress, cmd=cmd)
+                    with open(f"{job_path}", 'w') as fh:
+                        fh.write(outputText)
 
                     st = os.stat(job_path)
                     os.chmod(job_path, st.st_mode | stat.S_IEXEC)

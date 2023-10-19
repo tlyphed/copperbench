@@ -66,6 +66,7 @@ uncompress {{ shm_path }} {{ shm_path_uncompr }}
 # store node info
 echo Date: $(date) > node_info.log
 echo Node: $(hostname) >> node_info.log
+echo Input: "{{ input_line }}" >> node_info.log
 cat /proc/self/status | grep Cpus_allowed: >> node_info.log
 if test -f "00_finished"; then
     echo ">>>Solver already finished before. File '00_finished' exists."

@@ -59,6 +59,7 @@ class BenchConfig:
     email: Optional[str] = None
     write_scheuler_logs: Optional[bool] = True
     cmd_cwd: Optional[bool] = False
+    starexec_compatible: Optional[bool] = False
 
 
 def main() -> None:
@@ -136,6 +137,8 @@ def main() -> None:
                 config = line.strip()
                 if not config.startswith('#') and len(config) > 0:
                     configs[f'config{i}'] = config
+                    i += 1
+                else:
                     i += 1
 
         if os.path.exists(f'{dir_prefix}{benchmark_name}'):
@@ -298,7 +301,8 @@ def main() -> None:
                                                        rs_time=rs_time, mem_limit=bench_config.mem_limit,
                                                        runsolver_kill_delay=bench_config.runsolver_kill_delay,
                                                        input_line=input_line, cmd_cwd=bench_config.cmd_cwd,
-                                                       cmd_dir=os.path.dirname(cmd.split(' ')[0]))
+                                                       cmd_dir=os.path.dirname(cmd.split(' ')[0]),
+                                                       starexec=bench_config.starexec_compatible)
                     with open(f"{job_path}", 'w') as fh:
                         fh.write(outputText)
 

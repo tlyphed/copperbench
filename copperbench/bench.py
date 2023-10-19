@@ -279,7 +279,7 @@ def main() -> None:
                                                        solver_cmd=cmd, runsolver_str=runsolver_str,
                                                        perf_prefix=PERF_PREFIX,
                                                        rs_time=rs_time, mem_limit=bench_config.mem_limit,
-                                                       runssolver_kill_delay=bench_config.runsolver_kill_delay)
+                                                       runsolver_kill_delay=bench_config.runsolver_kill_delay)
                     with open(f"{job_path}", 'w') as fh:
                         fh.write(outputText)
 

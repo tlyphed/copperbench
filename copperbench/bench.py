@@ -16,7 +16,7 @@ import jinja2
 
 from .__version__ import __version__
 
-PERF_PREFIX = f'stat -o perf.log -B -e'
+PERF_PREFIX = f'stat -B -e'
 PERF_EVENTS = [
     'cache-references',
     'cache-misses',

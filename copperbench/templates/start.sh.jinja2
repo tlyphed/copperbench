@@ -67,7 +67,14 @@ uncompress {{ shm_path }} {{ shm_path_uncompr }}
 echo Date: $(date) > node_info.log
 echo Node: $(hostname) >> node_info.log
 cat /proc/self/status | grep Cpus_allowed: >> node_info.log
+if test -f "00_finished"; then
+    echo ">>>Solver already finished before. File '00_finished' exists."
+    echo ">>>...Run the following command manually, if you want to proceed find $(realpath .) -name 00_finished -exec rm {} \;"
+    echo ">>>...stopping here..."
+    exit 4
+fi
 # execute run
 {{ cmd }} &
 child=$!
 wait "$child"
+touch 00_finished

@@ -267,6 +267,7 @@ def main() -> None:
                     runsolver_str = Path(shm_dir, 'input', rs_file)
                     shm_files += [(Path(bench_config.runsolver_path), runsolver_str)]
 
+                    #TODO(jf): move runsolver + perf into template for better readability
                     rs_cmd = (f'{runsolver_str} -w runsolver.log -v varfile.log -W {rs_time}'
                               f' -V {bench_config.mem_limit} -d {bench_config.runsolver_kill_delay}')
                     solver_cmd = f'{cmd} 2> stderr.log 1> stdout.log'

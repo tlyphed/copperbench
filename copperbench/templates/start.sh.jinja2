@@ -73,9 +73,9 @@ echo $(cat /proc/meminfo  | grep MemTotal) >> node_info.log
 echo $(cat /proc/cpuinfo  | egrep "^model name|^cache size" | head -2) >> node_info.log
 
 cat /proc/self/status | grep Cpus_allowed: >> node_info.log
-if test -f "00_finished"; then
-    echo ">>>Solver already finished before. File '00_finished' exists."
-    echo ">>>...Run the following command manually, if you want to proceed find $(realpath .) -name 00_finished -exec rm {} \;"
+if test -f "00_finished.log"; then
+    echo ">>>Solver already finished before. File '00_finished.log' exists."
+    echo ">>>...Run the following command manually, if you want to proceed find $(realpath .) -name 00_finished.log -exec rm {} \;"
     echo ">>>...stopping here..."
     exit 4
 fi
@@ -94,4 +94,4 @@ wait "$child"
 {%- if cmd_cwd %}
 popd
 {%- endif %}
-touch 00_finished
+touch 00_finished.log

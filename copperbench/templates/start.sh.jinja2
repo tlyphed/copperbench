@@ -30,7 +30,9 @@ _cleanup() {
     # copy output into run dir
     cp * {{ log_folder }}
     # cleanup shm files
+    {%- if shm_uid is not none %}
     rm -rf /dev/shm/{{ shm_uid }}/
+    {%- endif %}
 }
 
 _term() {

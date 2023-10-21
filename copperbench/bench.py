@@ -117,6 +117,8 @@ def main() -> None:
         else:
             instance_path = f'{bench_config_dir}/{instancelist_filename}'
 
+        instancelist_dir = os.path.dirname(instance_path)
+
         instances = {}
         with open(instance_path) as file:
             i = 1
@@ -227,7 +229,7 @@ def main() -> None:
                                 instance_path = os.path.realpath(os.path.expanduser(Path('~', working_dir, e)))
                                 instance_path = Path('~', os.path.relpath(instance_path, start=starthome))
                             else:
-                                instance_dir = os.path.realpath(os.path.join(bench_config_dir, e))
+                                instance_dir = os.path.realpath(os.path.join(instancelist_dir, e))
                                 instance_path = Path('~', os.path.relpath(instance_dir, start=starthome))
 
                         shm_path = Path(shm_dir, 'input', os.path.basename(e))

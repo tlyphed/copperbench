@@ -3,6 +3,7 @@
 uncompress () {
     filename=$1
     output=$2
+    [[ ! -e $1 ]] && echo "Input file $1 missing." && exit 2
     type=$(file -b --mime-type $filename)
     echo "Compressed file recognized as: " $type
 

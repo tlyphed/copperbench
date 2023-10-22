@@ -209,6 +209,7 @@ def main() -> None:
                             else:
                                 folder = False
                             path = m.group(2)
+                            
                             if os.path.isabs(os.path.expanduser(path)):
                                 path = Path(path)
                             else:
@@ -218,12 +219,17 @@ def main() -> None:
                                 else:
                                     dir_name = os.path.realpath(os.path.join(bench_config_dir, path))
                                     path = Path('~', os.path.relpath(dir_name, start=starthome))
-                            path = os.path.dirname(path)
                             if folder:
                                 shm_path = Path(shm_dir, 'input')
                                 shm_files.append((f'-r {path}/*', shm_path))
+                                path = os.path.dirname(os.path.realpath(path))
                             else:
-                                shm_path = Path(shm_dir, 'input', path)
+                                if str(path).startswith('~'):
+                                    path = path
+                                    shm_path = Path(shm_dir, 'input', os.path.basename(path))
+                                else:
+                                    path = Path('~', os.path.relpath(os.path.expanduser(path), start=starthome))
+                                    shm_path = Path(shm_dir, 'input', path)
                                 shm_files.append((path, shm_path))
 
                         data_split = re.split('[;, ]', input_line)
@@ -291,7 +297,7 @@ def main() -> None:
                                 occ[sp.name] = 1
 
                         for _, f in shm_files:
-                            cmd = re.sub(r"\$(file){([^}]*)}", str(f), cmd, 2)
+                            cmd = re.sub(r"\$file{([^}]*)}", str(f), cmd, 1)
                             repl = ''
                             for m in re.finditer(r"\$folder{([^}]*)}", cmd):
                                 repl = f"{str(f)}/{os.path.basename(m.group(1))}"

@@ -103,7 +103,10 @@ def main() -> None:
         bench_name_prefix = f'{bench_config.name}/'
     elif isinstance(instance_conf, dict):
         instance_dict = instance_conf
-        bench_name_prefix = f'{bench_config.name}/'
+        if isinstance(bench_config.configs, str):
+            bench_name_prefix =''
+        else:
+            bench_name_prefix = f'{bench_config.name}/'
 
     rs_time = bench_config.timeout + bench_config.slurm_time_buffer
     slurm_time = rs_time + bench_config.runsolver_kill_delay
@@ -154,13 +157,13 @@ def main() -> None:
                     else:
                         i += 1
 
-            if os.path.exists(f'{bench_name_prefix}{bench_config_name}{instanceset_name}'):
+            if os.path.exists(f'{bench_name_prefix}{bench_config_name}/{instanceset_name}'):
                 if not bench_config.overwrite:
-                    dname = os.path.realpath(f'{bench_name_prefix}{bench_config_name}{instanceset_name}')
+                    dname = os.path.realpath(f'{bench_name_prefix}{bench_config_name}/{instanceset_name}')
                     print(f"Directory {dname} exists. Exiting...")
                     exit(2)
             else:
-                os.makedirs(f'{bench_name_prefix}/{bench_config_name}/{instanceset_name}')
+                os.makedirs(f'{bench_name_prefix}{bench_config_name}/{instanceset_name}')
 
             metadata = {'instances': instances, 'configs': configs}
 
@@ -220,7 +223,7 @@ def main() -> None:
                                 shm_path = Path(shm_dir, 'input')
                                 shm_files.append((f'-r {path}/*', shm_path))
                             else:
-                                shm_path = Path(shm_dir, 'input', path.name)
+                                shm_path = Path(shm_dir, 'input', path)
                                 shm_files.append((path, shm_path))
 
                         data_split = re.split('[;, ]', input_line)

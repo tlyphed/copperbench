@@ -60,6 +60,7 @@ class BenchConfig:
     write_scheuler_logs: Optional[bool] = True
     cmd_cwd: Optional[bool] = False
     starexec_compatible: Optional[bool] = False
+    python_conda_env: Optional[str] = None
 
 
 def main() -> None:
@@ -140,10 +141,10 @@ def main() -> None:
         elif isinstance(bench_config.configs, dict):
             for k,v in bench_config.configs.items():
                 if k == '':
-                    print(f'Skipping config {k}: {v} (empty name).')
+                    print(f'...Skipping config "{k}": "{v}" (name empty).')
                     continue
                 elif k.startswith('#'):
-                    print(f'Skipping config {k}: {v} (starts with #).')
+                    print(f'...Skipping config "{k}": "{v}" (name starts with #).')
                     continue
                 bench_config_dict[k] = v
 
@@ -333,7 +334,8 @@ def main() -> None:
                                                            runsolver_kill_delay=bench_config.runsolver_kill_delay,
                                                            input_line=input_line, cmd_cwd=bench_config.cmd_cwd,
                                                            cmd_dir=os.path.dirname(cmd.split(' ')[0]),
-                                                           starexec=bench_config.starexec_compatible)
+                                                           starexec=bench_config.starexec_compatible,
+                                                           python_conda_env=bench_config.python_conda_env)
                         with open(f"{job_path}", 'w') as fh:
                             fh.write(outputText)
 

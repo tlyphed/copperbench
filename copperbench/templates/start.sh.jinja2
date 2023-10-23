@@ -74,6 +74,41 @@ echo $(cat /proc/meminfo  | grep MemTotal) >> node_info.log
 echo $(cat /proc/cpuinfo  | egrep "^model name|^cache size" | head -2) >> node_info.log
 
 cat /proc/self/status | grep Cpus_allowed: >> node_info.log
+
+{%- if python_conda_env %}
+echo "c Activating Conda environment"
+if [ -d "$HOME/miniconda3/" ]; then
+    echo "miniconda3"
+    myconda="$HOME/miniconda3"
+elif [ -d "$HOME/anaconda3/" ]; then
+    echo "anaconda3"
+    myconda="$HOME/anaconda3"
+else
+    echo "c REQUIRES CONDA"
+    exit 5
+fi
+#>> conda initialize >>>
+# !! Contents within this block are managed by 'conda init' !!
+__conda_setup="$('$myconda/bin/conda' 'shell.bash' 'hook' 2> /dev/null)"
+if [ $? -eq 0 ]; then
+    eval "$__conda_setup"
+else
+    if [ -f "$myconda/etc/profile.d/conda.sh" ]; then
+	. "$myconda/etc/profile.d/conda.sh"
+    else
+	export PATH="$myconda/bin:$PATH"
+    fi
+fi
+unset __conda_setup
+# <<< conda initialize <<<
+conda activate {{ python_conda_env }}
+ret=$?
+if [ ! $ret -eq 0 ] ; then
+    echo 'Could not activate conda environment. Exiting...'
+    exit 4
+fi
+{%- endif  %}
+
 if [ -f {{ log_folder }}/00_finished.log ] ; then
     echo ">>>Solver already finished before. File '00_finished.log' exists."
     echo ">>>...Run the following command manually, if you want to proceed find $(realpath .) -name 00_finished.log -exec rm {} \;"

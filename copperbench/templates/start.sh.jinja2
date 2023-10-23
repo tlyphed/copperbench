@@ -1,0 +1,102 @@
+#!/usr/bin/env bash
+
+uncompress () {
+    filename=$1
+    output=$2
+    [[ ! -e $1 ]] && echo "Input file $1 missing." && exit 2
+    type=$(file -b --mime-type $filename)
+    echo "Compressed file recognized as: " $type
+
+    if [ $type == "application/x-lzma" ] ; then
+         prep_cmd="lzcat $filename"
+    elif [ $type == "application/x-bzip2" ] ; then
+         prep_cmd="bzcat $filename"
+    elif [ $type == "application/x-xz" ] ; then
+         prep_cmd="xzcat $filename"
+    elif [ $type == "application/octet-stream" ] ; then
+         prep_cmd="lzcat $filename"
+    else
+         prep_cmd="zcat -f $filename"
+    fi
+    echo "Preparing instance in $output"
+    echo "$prep_cmd > $output"
+    $prep_cmd > $output
+}
+
+_cleanup() {
+    {%- if symlink_working_dir %}
+    # cleanup symlinks
+    find . -type l -delete
+    {%- endif %}
+    # copy output into run dir
+    cp * {{ log_folder }}
+    # cleanup shm files
+    {%- if shm_uid is not none %}
+    rm -rf /dev/shm/{{ shm_uid }}/
+    {%- endif %}
+}
+
+_term() {
+  kill -TERM "$child" 2>/dev/null
+  _cleanup
+}
+
+trap _term SIGTERM
+trap _cleanup EXIT
+
+# change into job directory
+mkdir {{ shm_dir }}
+cd {{ shm_dir }}
+mkdir input
+mkdir output
+cd output
+{%- if symlink_working_dir %}
+# create log files (so that symlinks cannot interfere)
+touch runsolver.log stdout.log stderr.log varfile.log perf.log node_info.log
+# create symlinks for working directory
+ln -s ~/{{ working_dir }}/* .
+{%- endif %}
+# move inputs into shared mem
+{%- for orig_path, shm_path in shm_files %}
+cp {{ orig_path }} {{ shm_path }}
+{%- endfor %}
+# uncompress input files
+{%-  for shm_path, shm_path_uncompr in uncompress  %}
+uncompress {{ shm_path }} {{ shm_path_uncompr }}
+{%- endfor %}
+# store node info
+echo Date: $(date) > node_info.log
+echo Node: $(hostname) >> node_info.log
+echo Input: "{{ input_line }}" >> node_info.log
+echo GCC: $(gcc --version | head -n1) >> node_info.log
+echo Kernel: $(uname -r) >> node_info.log
+echo $(cat /proc/meminfo  | grep MemTotal) >> node_info.log
+echo $(cat /proc/cpuinfo  | egrep "^model name|^cache size" | head -2) >> node_info.log
+
+cat /proc/self/status | grep Cpus_allowed: >> node_info.log
+if [ -f {{ log_folder }}/00_finished.log ] ; then
+    echo ">>>Solver already finished before. File '00_finished.log' exists."
+    echo ">>>...Run the following command manually, if you want to proceed find $(realpath .) -name 00_finished.log -exec rm {} \;"
+    echo ">>>...stopping here..."
+    exit 4
+fi
+{%- if starexec %}
+myenv="STAREXEC_WALLCLOCK_LIMIT={{ rs_time }} TMP_OUT={{ shm_dir }}/input STAREXEC_MAX_MEM={{ mem_limit }}"
+{%- else %}
+myenv=""
+{%- endif %}
+{%- if cmd_cwd %}
+pushd {{ cmd_dir }}
+{%- endif %}
+# execute run
+{%- if use_perf %}
+env $myenv {{ runsolver_str }} -w {{ shm_dir }}/output/runsolver.log -v {{ shm_dir }}/output/varfile.log -W {{ rs_time }} --rss-swap-limit {{ mem_limit }} -d {{ runsolver_kill_delay }} /usr/bin/perf {{ perf_prefix }} {{ perf_events }} -o {{ shm_dir }}/output/perf.log {{ solver_cmd }} 2> {{ shm_dir }}/output/stderr.log 1> {{ shm_dir }}/output/stdout.log &
+{%- else %}
+env $myenv {{ runsolver_str }} -w {{ shm_dir }}/output/runsolver.log -v {{ shm_dir }}/output/varfile.log -W {{ rs_time }} --rss-swap-limit {{ mem_limit }} -d {{ runsolver_kill_delay }} {{ solver_cmd }} 2> {{ shm_dir }}/output/stderr.log 1> {{ shm_dir }}/output/stdout.log &
+{%- endif  %}
+child=$!
+wait "$child"
+{%- if cmd_cwd %}
+popd
+{%- endif %}
+touch 00_finished.log

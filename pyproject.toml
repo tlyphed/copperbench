@@ -7,10 +7,11 @@ copperbench = "copperbench:__main__.main"
 
 [tool.setuptools.dynamic]
 version = {attr = "copperbench.__version__.__version__"}
+dependencies = {file = ["requirements.txt"]}
 
 [project]
 name = "copperbench"
-dynamic = ["version"]
+dynamic = ["version","dependencies"]
 authors = [
   { name="Tobias Geibinger", email="tobias.geibinger@tuwien.ac.at" },
 ]

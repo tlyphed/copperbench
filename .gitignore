@@ -3,3 +3,4 @@
 __pycache__/
 build/
 copperbench.egg-info/
+.idea/

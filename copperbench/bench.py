@@ -180,8 +180,6 @@ def main() -> None:
             for config_name, config in configs.items():
                 config_line += 1
                 config = "" if config == "None" else config
-                if not os.path.isabs(os.path.expanduser(config)) and not config.startswith('$'):
-                    config = str(Path('~', os.path.relpath(Path(bench_config_dir, config), start=starthome)))
 
                 instance_config_line = 0
                 for input_name, input_line in instances.items():
@@ -313,6 +311,8 @@ def main() -> None:
 
                         cmd = re.sub(r"\$timeout", str(bench_config.timeout * bench_config.timeout_factor), cmd)
                         cmd = re.sub(r"\$seed", str(random.randint(0, 2 ** 32)), cmd)
+
+                        
 
                         rs_file = Path(bench_config.runsolver_path).name
                         runsolver_str = Path(shm_dir, 'input', rs_file)

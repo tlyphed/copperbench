@@ -221,8 +221,8 @@ def main() -> None:
                                     path = Path('~', os.path.relpath(dir_name, start=starthome))
                             if folder:
                                 shm_path = Path(shm_dir, 'input')
+                                path = os.path.dirname(path)
                                 shm_files.append((f'-r {path}/*', shm_path))
-                                path = os.path.dirname(os.path.realpath(path))
                             else:
                                 if str(path).startswith('~'):
                                     path = path

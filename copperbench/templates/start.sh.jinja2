@@ -51,7 +51,7 @@ mkdir output
 cd output
 {%- if symlink_working_dir %}
 # create log files (so that symlinks cannot interfere)
-touch runsolver.log stdout.log stderr.log
+touch runsolver.log stdout.log stderr.log varfile.log perf.log node_info.log
 # create symlinks for working directory
 ln -s ~/{{ working_dir }}/* .
 {%- endif %}

@@ -94,7 +94,6 @@ def main() -> None:
 
     instance_conf = bench_config.instances
     instance_dict = {}
-    bench_name_prefix = ''
     if isinstance(instance_conf, str):
         instance_dict[bench_config.name] = instance_conf
     elif isinstance(instance_conf, list):
@@ -102,10 +101,6 @@ def main() -> None:
             instance_dict[f'{bench_config.name}_{os.path.splitext(e)[0]}'] = e
     elif isinstance(instance_conf, dict):
         instance_dict = instance_conf
-        if isinstance(bench_config.configs, str):
-            bench_name_prefix =''
-        else:
-            bench_name_prefix = f'{bench_config.name}/'
 
     rs_time = bench_config.timeout + bench_config.slurm_time_buffer
     slurm_time = rs_time + bench_config.runsolver_kill_delay
@@ -163,17 +158,20 @@ def main() -> None:
                     else:
                         i += 1
 
-            if isinstance(bench_config.instances, str):
-                dpath = Path(f'{bench_name_prefix}{bench_config_name}')
-            else:
-                dpath = Path(f'{bench_name_prefix}{bench_config_name}', instanceset_name)
+            base_path = Path(bench_config.name)
 
-            if os.path.exists(dpath):
+            if not isinstance(bench_config.configs, str):
+                base_path = base_path / bench_config_name
+
+            if not isinstance(instance_conf, str):
+                base_path = base_path / instanceset_name 
+
+            if os.path.exists(base_path):
                 if not bench_config.overwrite:
-                    print(f"Directory {os.path.realpath(dpath)} exists. Exiting...")
+                    print(f"Directory {os.path.realpath(base_path)} exists. Exiting...")
                     exit(2)
             else:
-                os.makedirs(dpath)
+                os.makedirs(base_path)
 
             metadata = {'instances': instances, 'configs': configs}
 
@@ -191,7 +189,7 @@ def main() -> None:
                     if input_line.startswith('#') or input_line.startswith('%'):
                         continue
                     for i in range(1, bench_config.runs + 1):
-                        log_folder = Path(dpath, config_name, input_name, f'run{i}')
+                        log_folder = Path(base_path, config_name, input_name, f'run{i}')
                         if os.path.exists(log_folder):
                             if not bench_config.overwrite:
                                 print(f"Directory {os.path.realpath(log_folder)} exists. Exiting...")
@@ -343,21 +341,21 @@ def main() -> None:
                         os.chmod(job_path, st.st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
                         start_scripts += [job_path]
 
-            with open(dpath / 'metadata.json', 'w') as file:
+            with open(base_path / 'metadata.json', 'w') as file:
                 file.write(json.dumps(metadata, indent=4))
 
-            with open(dpath / 'start_list.txt', 'w') as file:
+            with open(base_path / 'start_list.txt', 'w') as file:
                 for p in start_scripts:
-                    file.write(str(os.path.relpath(p, start=dpath)) + '\n')
+                    file.write(str(os.path.relpath(p, start=base_path)) + '\n')
 
-            bench_path = os.path.relpath(dpath, start=starthome)
+            bench_path = os.path.relpath(base_path, start=starthome)
             slurm_template = templateEnv.get_template('batch_job.slurm.jinja2')
             slurm_timeout = datetime.timedelta(seconds=slurm_time)
             mem_per_cpu = int(math.ceil(bench_config.mem_limit / cpus))
             min_freq = bench_config.cpu_freq * 1000
             max_freq = bench_config.cpu_freq * 1000
             output_path = 'slurm_logs'
-            os.makedirs(dpath / output_path, exist_ok=True)
+            os.makedirs(base_path / output_path, exist_ok=True)
             outputText = slurm_template.render(benchmark_name=instanceset_name, slurm_timeout=slurm_timeout,
                                                partition=bench_config.partition, cpus_per_task=cpus,
                                                mem_per_cpu=mem_per_cpu, email=bench_config.email,
@@ -369,21 +367,20 @@ def main() -> None:
                                                max_parallel_jobs=bench_config.max_parallel_jobs,
                                                lstart_scripts=len(start_scripts), exclusive=bench_config.exclusive,
                                                bench_path=bench_path)
-            with open(dpath / 'batch_job.slurm', 'w') as fh:
+            with open(base_path / 'batch_job.slurm', 'w') as fh:
                 fh.write(outputText)
 
             compress_results_slurm = templateEnv.get_template('compress_results.slurm.jinja2')
             outputText = compress_results_slurm.render(benchmark_name=instanceset_name, partition=bench_config.partition,
                                                        bench_path=bench_path,
-                                                       dir_prefix=f"{bench_name_prefix}{bench_config_name}",
                                                        write_scheduler_logs=bench_config.write_scheuler_logs,
                                                        output_path=output_path)
-            with open(dpath / 'compress_results.slurm', 'w') as fh:
+            with open(base_path / 'compress_results.slurm', 'w') as fh:
                 fh.write(outputText)
 
-            submit_sh_path = Path(dpath, 'submit_all.sh')
+            submit_sh_path = Path(base_path, 'submit_all.sh')
             submit_all = templateEnv.get_template('submit_all.sh.jinja2')
-            wd = os.path.relpath(dpath, start=starthome)
+            wd = os.path.relpath(base_path, start=starthome)
             outputText = submit_all.render(wd=wd)
             with open(submit_sh_path, 'w') as fh:
                 fh.write(outputText)

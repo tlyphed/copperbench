@@ -138,7 +138,14 @@ def main() -> None:
             for e in bench_config.configs:
                 bench_config_dict[f'{bench_config.name}_{os.path.splitext(e)[0]}'] = e
         elif isinstance(bench_config.configs, dict):
-            bench_config_dict = bench_config.configs
+            for k,v in bench_config.configs.items():
+                if k == '':
+                    print(f'Skipping config {k}: {v} (empty name).')
+                    continue
+                elif k.startswith('#'):
+                    print(f'Skipping config {k}: {v} (starts with #).')
+                    continue
+                bench_config_dict[k] = v
 
         for bench_config_name, benchmark_config in bench_config_dict.items():
             if os.path.isabs(benchmark_config):

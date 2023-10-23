@@ -11,6 +11,7 @@ import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
+from .utils import query_yes_no
 
 import jinja2
 
@@ -61,6 +62,7 @@ class BenchConfig:
     cmd_cwd: Optional[bool] = False
     starexec_compatible: Optional[bool] = False
     python_conda_env: Optional[str] = None
+    warn_large_task_num: Optional[bool] = True
 
 
 def main() -> None:
@@ -111,6 +113,7 @@ def main() -> None:
 
     rs_time = bench_config.timeout + bench_config.slurm_time_buffer
     slurm_time = rs_time + bench_config.runsolver_kill_delay
+    warn_large_task_num = bench_config.warn_large_task_num
 
     for instanceset_name, instancelist_filename in instance_dict.items():
         if (instanceset_name.startswith("%") or instanceset_name.startswith("#") or
@@ -148,6 +151,7 @@ def main() -> None:
                     continue
                 bench_config_dict[k] = v
 
+        num_tasks=0
         for bench_config_name, benchmark_config in bench_config_dict.items():
             if os.path.isabs(benchmark_config):
                 config_path = benchmark_config
@@ -336,6 +340,15 @@ def main() -> None:
                                                            cmd_dir=os.path.dirname(cmd.split(' ')[0]),
                                                            starexec=bench_config.starexec_compatible,
                                                            python_conda_env=bench_config.python_conda_env)
+                        num_tasks+=1
+                        if num_tasks > 1000 and warn_large_task_num:
+                            print(f'WARNING: you already generated {num_tasks} tasks!!!')
+                            if not query_yes_no('Do you want to proceed?', 'yes'):
+                                print('Exiting...')
+                                exit(4)
+                            warn_large_task_num = False
+
+
                         with open(f"{job_path}", 'w') as fh:
                             fh.write(outputText)
 
@@ -399,3 +412,8 @@ def main() -> None:
 
             st = os.stat(submit_sh_path)
             os.chmod(submit_sh_path, st.st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+    if job_path is None or job_path == '':
+        job_path = 'NO_FILE_GENERATED'
+    print(f'Copperbench generated in total {num_tasks} task files.')
+    print(f'...Run all on slurm by executing all "submit_all.sh" files.')
+    print(f'...Test setup by executing one "start.sh" (e.g. "{job_path}")')

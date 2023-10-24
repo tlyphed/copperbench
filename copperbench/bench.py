@@ -47,9 +47,8 @@ class BenchConfig:
     initial_seed: Optional[int] = None
     partition: str = 'broadwell'
     cpus_per_node: int = 24
-    mem_lines: int = 4
+    mem_lines: int = 8
     exclusive: bool = False
-    cache_pinning: bool = True
     cpu_freq: int = 2200
     use_perf: bool = True
     runsolver_path: str = "/opt/runsolver"
@@ -360,7 +359,7 @@ def main() -> None:
                                                partition=bench_config.partition, cpus_per_task=cpus,
                                                mem_per_cpu=mem_per_cpu, email=bench_config.email,
                                                account=bench_config.billing,
-                                               cache_pinning=bench_config.cache_pinning, cache_lines=cache_lines,
+                                               cache_lines=cache_lines,
                                                min_freq=min_freq, max_freq=max_freq,
                                                write_scheduler_logs=bench_config.write_scheuler_logs,
                                                output_path=output_path,

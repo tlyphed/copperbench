@@ -14,7 +14,6 @@
   "runsolver_kill_delay": 10,
   "slurm_time_buffer": 5,
   "timeout_factor": 1,
-  "cache_pinning": false,
   "cpus_per_node": 24,
   "max_parallel_jobs": 8
 }

@@ -59,6 +59,7 @@ class BenchConfig:
     write_scheuler_logs: Optional[bool] = True
     cmd_cwd: Optional[bool] = False
     starexec_compatible: Optional[bool] = False
+    instances_are_parameters: Optional[bool] = False
 
 
 def main() -> None:
@@ -241,35 +242,38 @@ def main() -> None:
                         uncompress = []
                         cmd_instances = []
                         for e in data_split:
-                            if e in collected.keys() and collected[e] != os.path.realpath(e):
-                                print(
-                                    f'Instance {e} was already added. Instances of the same name from different paths are '
-                                    f'currently not supported! Exiting...')
-                                exit(2)
-                            collected[e] = os.path.realpath(e)
-
-                            if os.path.isabs(os.path.expanduser(e)):
-                                instance_path = Path(e)
+                            if bench_config.instances_are_parameters:
+                                cmd_instances.append(e)
                             else:
-                                if working_dir is not None:
-                                    instance_path = os.path.realpath(os.path.expanduser(Path('~', working_dir, e)))
-                                    instance_path = Path('~', os.path.relpath(instance_path, start=starthome))
+                                if e in collected.keys() and collected[e] != os.path.realpath(e):
+                                    print(
+                                        f'Instance {e} was already added. Instances of the same name from different paths are '
+                                        f'currently not supported! Exiting...')
+                                    exit(2)
+                                collected[e] = os.path.realpath(e)
+
+                                if os.path.isabs(os.path.expanduser(e)):
+                                    instance_path = Path(e)
                                 else:
-                                    instance_dir = os.path.realpath(os.path.join(instancelist_dir, e))
-                                    instance_path = Path('~', os.path.relpath(instance_dir, start=starthome))
+                                    if working_dir is not None:
+                                        instance_path = os.path.realpath(os.path.expanduser(Path('~', working_dir, e)))
+                                        instance_path = Path('~', os.path.relpath(instance_path, start=starthome))
+                                    else:
+                                        instance_dir = os.path.realpath(os.path.join(instancelist_dir, e))
+                                        instance_path = Path('~', os.path.relpath(instance_dir, start=starthome))
 
-                            shm_path = Path(shm_dir, 'input', os.path.basename(e))
-                            shm_files.append((Path(instance_path), shm_path))
+                                shm_path = Path(shm_dir, 'input', os.path.basename(e))
+                                shm_files.append((Path(instance_path), shm_path))
 
-                            if e.lower().endswith('.lzma') or e.lower().endswith('.zip') or e.lower().endswith(
-                                    '.gz') or e.lower().endswith('.xz') or e.lower().endswith('.bz2'):
-                                shm_path_uncompr = os.path.splitext(e)[0]
-                                shm_path_uncompr = Path(shm_dir, 'input', os.path.basename(shm_path_uncompr))
-                                uncompress.append((shm_path, shm_path_uncompr))
-                                cmd_instances.append(shm_path_uncompr)
-                            else:
-                                shm_path_uncompr = shm_path
-                                cmd_instances.append(shm_path_uncompr)
+                                if e.lower().endswith('.lzma') or e.lower().endswith('.zip') or e.lower().endswith(
+                                        '.gz') or e.lower().endswith('.xz') or e.lower().endswith('.bz2'):
+                                    shm_path_uncompr = os.path.splitext(e)[0]
+                                    shm_path_uncompr = Path(shm_dir, 'input', os.path.basename(shm_path_uncompr))
+                                    uncompress.append((shm_path, shm_path_uncompr))
+                                    cmd_instances.append(shm_path_uncompr)
+                                else:
+                                    shm_path_uncompr = shm_path
+                                    cmd_instances.append(shm_path_uncompr)
 
                         cmd_instances_used = set()
                         for m in re.finditer(r"\$[1-9][0-9]*", cmd):
@@ -280,8 +284,8 @@ def main() -> None:
                             except IndexError as _:
                                 print(
                                     f"Config: '{os.path.basename(config_path)}:L{config_line}' contained '${idx}', "
-                                    f"but instance file '{instancelist_filename}:L{instance_config_line}' "
-                                    f"was missing an file ${idx}.\n........Content was '{input_line}'.")
+                                    f"but instance '{instancelist_filename}:L{instance_config_line}' "
+                                    f"was missing an argument ${idx}.\n........Content was '{input_line}'.")
                                 print(f"Exiting!")
                                 exit(2)
                             cmd_instances_used.add(idx - 1)
@@ -310,8 +314,6 @@ def main() -> None:
 
                         cmd = re.sub(r"\$timeout", str(bench_config.timeout * bench_config.timeout_factor), cmd)
                         cmd = re.sub(r"\$seed", str(random.randint(0, 2 ** 32)), cmd)
-
-                        
 
                         rs_file = Path(bench_config.runsolver_path).name
                         runsolver_str = Path(shm_dir, 'input', rs_file)

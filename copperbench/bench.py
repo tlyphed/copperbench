@@ -60,6 +60,7 @@ class BenchConfig:
     cmd_cwd: Optional[bool] = False
     starexec_compatible: Optional[bool] = False
     instances_are_parameters: Optional[bool] = False
+    data_to_main_mem = True
 
 
 def main() -> None:
@@ -199,7 +200,10 @@ def main() -> None:
                         job_path = log_folder / job_file
 
                         shm_uid = uuid.uuid1()
-                        shm_dir = Path(f'/dev/shm/{shm_uid}/')
+                        if bench_config.data_to_main_mem:
+                            shm_dir = Path(f'/dev/shm/{shm_uid}/')
+                        else:
+                            shm_dir = Path(f'/tmp/{shm_uid}/')
 
                         cmd = ''
                         if bench_config.executable is not None:

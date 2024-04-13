@@ -30,7 +30,7 @@ Further optional arguments:
 * `initial_seed`: The initial seed used for generating random seeds.
 * `slurm_time_buffer`: The amount of seconds added to the run time before slurm forcefully ends the job (default: 10).
 * `exclusive`: Whether the benchmark should be run exclusively on each node (default: `false`).
-* `cpu_freq`: The used CPU frequency in MHz (max. 2900MhZ). Default is the baseline frequency of 2200MHz. Higher values should be used at your own risk as they can increase non-reproducability.
+* `cpu_freq`: The used CPU frequency in MHz (max. 2900MHz). Default is the baseline frequency of 2200MHz. Higher values should be used at your own risk as they can increase non-reproducability.
 
 Advanced parameters (usually do not need changing):
 * `partition`: The slurm partition to which the jobs get submitted (default: `"broadwell"`)
@@ -41,6 +41,8 @@ Advanced parameters (usually do not need changing):
 * `runsolver_path`: The path to the runsolver binary.
 * `billing`: The SLURM account the job will be billed to (default `None`).
 * `max_parallel_jobs`: The maximum number of jobs that will be executed in parallel (default `None` which means no limit).
+* `instances_are_parameters`: Specifies that the instance file contains parameters rather than files (default `false`).
+* `data_to_main_mem`: Copy instance files into main memory (default `true`).
 
 There are three meta-arguments which can be used in the executable string and config files. Namely, `$seed`, `$timeout`, `$file{<path/to/file>}`. During job generation the first two are replaced with the respective values where the `$seed` is randomly generated. The initial seed for this generation can be specified with the optional field `initial_seed` in the bench config. 
 Furthermore, since `timeout` is assumed to be in seconds, it is possible to factor that value with the optional `timeout_factor` parameter before it is substituted with `$timeout`.  

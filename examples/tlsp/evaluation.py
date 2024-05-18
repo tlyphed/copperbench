@@ -29,7 +29,7 @@ def read_log(log_file: Path) -> Optional[Dict[str, int]]:
                 return { 'objective' : penatly, 'optimal' : opt }
 
 
-data = postprocess.process_bench('bench_vlns', read_log)
+data = postprocess.process_bench('bench_vlns', read_log, include_metrics=True)
 df = pd.DataFrame.from_records(data)
 df.to_csv('results_vlns.csv')
 

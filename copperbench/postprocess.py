@@ -7,7 +7,8 @@ import re
 
 
 def process_bench(bench_folder: Union[Path, str], log_read_func: Callable[[Path], Optional[Dict[str, Any]]],
-                  metadata_file: Optional[Union[Path, str]] = None, include_metrics: bool = False) -> List[Dict[str, Any]]:
+                  metadata_file: Optional[Union[Path, str]] = None, include_metrics: bool = False,
+                  err_read_func: Callable[[Path], Optional[Dict[str, Any]]] = lambda x: None) -> List[Dict[str, Any]]:
     bench_folder = Path(bench_folder)
     if metadata_file != None:
         metadata_file = Path(metadata_file)
@@ -26,7 +27,13 @@ def process_bench(bench_folder: Union[Path, str], log_read_func: Callable[[Path]
                 if instance_dir.name.startswith('instance') and os.path.isdir(instance_dir):
                     for run_dir in os.scandir(instance_dir):
                         if run_dir.name.startswith('run') and os.path.isdir(run_dir):
-                            result = log_read_func(Path(run_dir, 'stdout.log'))
+                            result_log = log_read_func(Path(run_dir, 'stdout.log'))
+                            result_err = err_read_func(Path(run_dir, 'stderr.log'))
+                            result = {}
+                            if result_log:
+                                result = result | result_log
+                            if result_err:
+                                result = result | result_err
                             if result:
                                 if metadata != None:
                                     conf_name = metadata['configs'][config_dir.name]
@@ -71,7 +78,7 @@ def process_bench(bench_folder: Union[Path, str], log_read_func: Callable[[Path]
 
 
 def process_bench_regex(bench_folder: Union[Path, str], regex: Pattern,
-                        metadata_file: Optional[Union[Path, str]] = None) -> List[Dict[str, Any]]:
+                        metadata_file: Optional[Union[Path, str]] = None, include_metrics: bool = False) -> List[Dict[str, Any]]:
 
     def read_log(log_file):
         with open(log_file, 'r') as file:
@@ -79,4 +86,4 @@ def process_bench_regex(bench_folder: Union[Path, str], regex: Pattern,
             if match != None:
                 return match.groupdict()
 
-    return process_bench(bench_folder, read_log, metadata_file)
+    return process_bench(bench_folder, read_log, metadata_file, include_metrics=include_metrics)

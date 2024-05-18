@@ -10,7 +10,7 @@ import stat
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 from .utils import query_yes_no
 
 import jinja2
@@ -33,8 +33,8 @@ PERF_EVENTS = [
 @dataclass
 class BenchConfig:
     name: str
-    instances: Path
-    configs: Path
+    instances: Union[Path, list, dict]
+    configs: Union[Path, list, dict]
     timeout: int
     request_cpus: int
     mem_limit: int
@@ -48,9 +48,8 @@ class BenchConfig:
     initial_seed: Optional[int] = None
     partition: str = 'broadwell'
     cpus_per_node: int = 24
-    mem_lines: int = 4
+    mem_lines: int = 8
     exclusive: bool = False
-    cache_pinning: bool = True
     cpu_freq: int = 2200
     use_perf: bool = True
     runsolver_path: str = "/opt/runsolver"
@@ -63,6 +62,8 @@ class BenchConfig:
     starexec_compatible: Optional[bool] = False
     python_conda_env: Optional[str] = None
     warn_large_task_num: Optional[bool] = True
+    instances_are_parameters: Optional[bool] = False
+    data_to_main_mem = True
 
 
 def main() -> None:
@@ -97,19 +98,13 @@ def main() -> None:
 
     instance_conf = bench_config.instances
     instance_dict = {}
-    bench_name_prefix = ''
     if isinstance(instance_conf, str):
         instance_dict[bench_config.name] = instance_conf
     elif isinstance(instance_conf, list):
         for e in instance_conf:
             instance_dict[f'{bench_config.name}_{os.path.splitext(e)[0]}'] = e
-        bench_name_prefix = f'{bench_config.name}/'
     elif isinstance(instance_conf, dict):
         instance_dict = instance_conf
-        if isinstance(bench_config.configs, str):
-            bench_name_prefix =''
-        else:
-            bench_name_prefix = f'{bench_config.name}/'
 
     rs_time = bench_config.timeout + bench_config.slurm_time_buffer
     slurm_time = rs_time + bench_config.runsolver_kill_delay
@@ -169,13 +164,20 @@ def main() -> None:
                     else:
                         i += 1
 
-            if os.path.exists(f'{bench_name_prefix}{bench_config_name}/{instanceset_name}'):
+            base_path = Path(bench_config.name)
+
+            if not isinstance(bench_config.configs, str):
+                base_path = base_path / bench_config_name
+
+            if not isinstance(instance_conf, str):
+                base_path = base_path / instanceset_name 
+
+            if os.path.exists(base_path):
                 if not bench_config.overwrite:
-                    dname = os.path.realpath(f'{bench_name_prefix}{bench_config_name}/{instanceset_name}')
-                    print(f"Directory {dname} exists. Exiting...")
+                    print(f"Directory {os.path.realpath(base_path)} exists. Exiting...")
                     exit(2)
             else:
-                os.makedirs(f'{bench_name_prefix}{bench_config_name}/{instanceset_name}')
+                os.makedirs(base_path)
 
             metadata = {'instances': instances, 'configs': configs}
 
@@ -184,8 +186,6 @@ def main() -> None:
             for config_name, config in configs.items():
                 config_line += 1
                 config = "" if config == "None" else config
-                if not os.path.isabs(os.path.expanduser(config)) and not config.startswith('$'):
-                    config = str(Path('~', os.path.relpath(Path(bench_config_dir, config), start=starthome)))
 
                 instance_config_line = 0
                 for input_name, input_line in instances.items():
@@ -193,8 +193,7 @@ def main() -> None:
                     if input_line.startswith('#') or input_line.startswith('%'):
                         continue
                     for i in range(1, bench_config.runs + 1):
-                        log_folder = Path(bench_name_prefix, bench_config_name, instanceset_name, config_name,
-                                          input_name, f'run{i}')
+                        log_folder = Path(base_path, config_name, input_name, f'run{i}')
                         if os.path.exists(log_folder):
                             if not bench_config.overwrite:
                                 print(f"Directory {os.path.realpath(log_folder)} exists. Exiting...")
@@ -206,7 +205,10 @@ def main() -> None:
                         job_path = log_folder / job_file
 
                         shm_uid = uuid.uuid1()
-                        shm_dir = Path(f'/dev/shm/{shm_uid}/')
+                        if bench_config.data_to_main_mem:
+                            shm_dir = Path(f'/dev/shm/{shm_uid}/')
+                        else:
+                            shm_dir = Path(f'/tmp/{shm_uid}/')
 
                         cmd = ''
                         if bench_config.executable is not None:
@@ -249,35 +251,38 @@ def main() -> None:
                         uncompress = []
                         cmd_instances = []
                         for e in data_split:
-                            if e in collected.keys() and collected[e] != os.path.realpath(e):
-                                print(
-                                    f'Instance {e} was already added. Instances of the same name from different paths are '
-                                    f'currently not supported! Exiting...')
-                                exit(2)
-                            collected[e] = os.path.realpath(e)
-
-                            if os.path.isabs(os.path.expanduser(e)):
-                                instance_path = Path(e)
+                            if bench_config.instances_are_parameters:
+                                cmd_instances.append(e)
                             else:
-                                if working_dir is not None:
-                                    instance_path = os.path.realpath(os.path.expanduser(Path('~', working_dir, e)))
-                                    instance_path = Path('~', os.path.relpath(instance_path, start=starthome))
+                                if e in collected.keys() and collected[e] != os.path.realpath(e):
+                                    print(
+                                        f'Instance {e} was already added. Instances of the same name from different paths are '
+                                        f'currently not supported! Exiting...')
+                                    exit(2)
+                                collected[e] = os.path.realpath(e)
+
+                                if os.path.isabs(os.path.expanduser(e)):
+                                    instance_path = Path(e)
                                 else:
-                                    instance_dir = os.path.realpath(os.path.join(instancelist_dir, e))
-                                    instance_path = Path('~', os.path.relpath(instance_dir, start=starthome))
+                                    if working_dir is not None:
+                                        instance_path = os.path.realpath(os.path.expanduser(Path('~', working_dir, e)))
+                                        instance_path = Path('~', os.path.relpath(instance_path, start=starthome))
+                                    else:
+                                        instance_dir = os.path.realpath(os.path.join(instancelist_dir, e))
+                                        instance_path = Path('~', os.path.relpath(instance_dir, start=starthome))
 
-                            shm_path = Path(shm_dir, 'input', os.path.basename(e))
-                            shm_files.append((Path(instance_path), shm_path))
+                                shm_path = Path(shm_dir, 'input', os.path.basename(e))
+                                shm_files.append((Path(instance_path), shm_path))
 
-                            if e.lower().endswith('.lzma') or e.lower().endswith('.zip') or e.lower().endswith(
-                                    '.gz') or e.lower().endswith('.xz') or e.lower().endswith('.bz2'):
-                                shm_path_uncompr = os.path.splitext(e)[0]
-                                shm_path_uncompr = Path(shm_dir, 'input', os.path.basename(shm_path_uncompr))
-                                uncompress.append((shm_path, shm_path_uncompr))
-                                cmd_instances.append(shm_path_uncompr)
-                            else:
-                                shm_path_uncompr = shm_path
-                                cmd_instances.append(shm_path_uncompr)
+                                if e.lower().endswith('.lzma') or e.lower().endswith('.zip') or e.lower().endswith(
+                                        '.gz') or e.lower().endswith('.xz') or e.lower().endswith('.bz2'):
+                                    shm_path_uncompr = os.path.splitext(e)[0]
+                                    shm_path_uncompr = Path(shm_dir, 'input', os.path.basename(shm_path_uncompr))
+                                    uncompress.append((shm_path, shm_path_uncompr))
+                                    cmd_instances.append(shm_path_uncompr)
+                                else:
+                                    shm_path_uncompr = shm_path
+                                    cmd_instances.append(shm_path_uncompr)
 
                         cmd_instances_used = set()
                         for m in re.finditer(r"\$[1-9][0-9]*", cmd):
@@ -288,8 +293,8 @@ def main() -> None:
                             except IndexError as _:
                                 print(
                                     f"Config: '{os.path.basename(config_path)}:L{config_line}' contained '${idx}', "
-                                    f"but instance file '{instancelist_filename}:L{instance_config_line}' "
-                                    f"was missing an file ${idx}.\n........Content was '{input_line}'.")
+                                    f"but instance '{instancelist_filename}:L{instance_config_line}' "
+                                    f"was missing an argument ${idx}.\n........Content was '{input_line}'.")
                                 print(f"Exiting!")
                                 exit(2)
                             cmd_instances_used.add(idx - 1)
@@ -354,58 +359,48 @@ def main() -> None:
 
                         st = os.stat(job_path)
                         os.chmod(job_path, st.st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
-                        start_scripts += [Path(*job_path.parts[1:])]
+                        start_scripts += [job_path]
 
-            with open(Path(bench_name_prefix, bench_config_name, instanceset_name, 'metadata.json'), 'w') as file:
+            with open(base_path / 'metadata.json', 'w') as file:
                 file.write(json.dumps(metadata, indent=4))
 
-            with open(Path(bench_name_prefix, bench_config_name, instanceset_name, 'start_list.txt'), 'w') as file:
+            with open(base_path / 'start_list.txt', 'w') as file:
                 for p in start_scripts:
-                    # hack: if we have a prefix, we need to cut the first folder
-                    if bench_name_prefix != '':
-                        idx = str(p).find(bench_name_prefix)
-                        p = '/'.join(str(p).split('/')[1:])
-                    if bench_config_name:
-                        idx = str(p).find(bench_config_name)
-                        p = '/'.join(str(p).split('/')[1:])
-                    file.write(str(p) + '\n')
+                    file.write(str(os.path.relpath(p, start=base_path)) + '\n')
 
-            bench_path = os.path.relpath(Path(bench_name_prefix, bench_config_name, instanceset_name), start=starthome)
+            bench_path = os.path.relpath(base_path, start=starthome)
             slurm_template = templateEnv.get_template('batch_job.slurm.jinja2')
             slurm_timeout = datetime.timedelta(seconds=slurm_time)
             mem_per_cpu = int(math.ceil(bench_config.mem_limit / cpus))
             min_freq = bench_config.cpu_freq * 1000
             max_freq = bench_config.cpu_freq * 1000
-            output_path = f"{os.environ['HOME']}/{os.path.relpath(os.path.abspath(bench_path))}/slurm_logs"
-            if not os.path.exists(output_path):
-                os.makedirs(output_path)
+            output_path = 'slurm_logs'
+            os.makedirs(base_path / output_path, exist_ok=True)
             outputText = slurm_template.render(benchmark_name=instanceset_name, slurm_timeout=slurm_timeout,
                                                partition=bench_config.partition, cpus_per_task=cpus,
                                                mem_per_cpu=mem_per_cpu, email=bench_config.email,
                                                account=bench_config.billing,
-                                               cache_pinning=bench_config.cache_pinning, cache_lines=cache_lines,
+                                               cache_lines=cache_lines,
                                                min_freq=min_freq, max_freq=max_freq,
                                                write_scheduler_logs=bench_config.write_scheuler_logs,
                                                output_path=output_path,
                                                max_parallel_jobs=bench_config.max_parallel_jobs,
                                                lstart_scripts=len(start_scripts), exclusive=bench_config.exclusive,
                                                bench_path=bench_path)
-            with open(Path(bench_name_prefix, bench_config_name, instanceset_name, 'batch_job.slurm'), 'w') as fh:
+            with open(base_path / 'batch_job.slurm', 'w') as fh:
                 fh.write(outputText)
 
             compress_results_slurm = templateEnv.get_template('compress_results.slurm.jinja2')
             outputText = compress_results_slurm.render(benchmark_name=instanceset_name, partition=bench_config.partition,
                                                        bench_path=bench_path,
-                                                       dir_prefix=f"{bench_name_prefix}{bench_config_name}",
                                                        write_scheduler_logs=bench_config.write_scheuler_logs,
                                                        output_path=output_path)
-            with open(Path(bench_name_prefix,bench_config_name, instanceset_name, 'compress_results.slurm'),
-                      'w') as fh:
+            with open(base_path / 'compress_results.slurm', 'w') as fh:
                 fh.write(outputText)
 
-            submit_sh_path = Path( bench_name_prefix, bench_config_name, instanceset_name, 'submit_all.sh')
+            submit_sh_path = Path(base_path, 'submit_all.sh')
             submit_all = templateEnv.get_template('submit_all.sh.jinja2')
-            wd = os.path.relpath(Path(bench_name_prefix, bench_config_name, instanceset_name), start=starthome)
+            wd = os.path.relpath(base_path, start=starthome)
             outputText = submit_all.render(wd=wd)
             with open(submit_sh_path, 'w') as fh:
                 fh.write(outputText)

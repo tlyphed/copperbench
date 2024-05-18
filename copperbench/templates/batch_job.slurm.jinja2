@@ -12,9 +12,6 @@
 {%- if account is not none%}
 #SBATCH --account={{ account }}
 {%- endif %}
-{%- if cache_pinning %}
-#SBATCH --gres=cache:{{ cache_lines }}
-{%- endif %}
 #SBATCH --cpu-freq={{ min_freq }}-{{ max_freq }}:performance
 {%- if write_scheduler_logs is not none %}
 {#- environment variable HOME is required as absolute paths on HPC environments differ occasionally #}

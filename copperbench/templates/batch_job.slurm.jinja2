@@ -30,6 +30,9 @@
 #SBATCH --exclusive=user
 {%- endif %}
 #SBATCH --ntasks=1
+{%- if exclude_nodes is not none %}
+#SBATCH --exclude={{ exclude_nodes }}
+{%- endif %}
 
 cd ~/{{ bench_path }}
 start=$( awk "NR==$SLURM_ARRAY_TASK_ID" start_list.txt )

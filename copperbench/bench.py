@@ -61,6 +61,7 @@ class BenchConfig:
     starexec_compatible: Optional[bool] = False
     instances_are_parameters: Optional[bool] = False
     data_to_main_mem = True
+    exclude_nodes: Optional[Union[str, list]] = None
 
 
 def main() -> None:
@@ -102,6 +103,9 @@ def main() -> None:
             instance_dict[f'{bench_config.name}_{os.path.splitext(e)[0]}'] = e
     elif isinstance(instance_conf, dict):
         instance_dict = instance_conf
+
+    if bench_config.exclude_nodes and isinstance(bench_config.exclude_nodes, list):
+        bench_config.exclude_nodes = ",".join(bench_config.exclude_nodes)
 
     rs_time = bench_config.timeout + bench_config.slurm_time_buffer
     slurm_time = rs_time + bench_config.runsolver_kill_delay
@@ -371,7 +375,8 @@ def main() -> None:
                                                output_path=output_path,
                                                max_parallel_jobs=bench_config.max_parallel_jobs,
                                                lstart_scripts=len(start_scripts), exclusive=bench_config.exclusive,
-                                               bench_path=bench_path)
+                                               bench_path=bench_path,
+                                               exclude_nodes=bench_config.exclude_nodes)
             with open(base_path / 'batch_job.slurm', 'w') as fh:
                 fh.write(outputText)
 
@@ -379,7 +384,8 @@ def main() -> None:
             outputText = compress_results_slurm.render(benchmark_name=instanceset_name, partition=bench_config.partition,
                                                        bench_path=bench_path,
                                                        write_scheduler_logs=bench_config.write_scheuler_logs,
-                                                       output_path=output_path)
+                                                       output_path=output_path,
+                                                       exclude_nodes=bench_config.exclude_nodes)
             with open(base_path / 'compress_results.slurm', 'w') as fh:
                 fh.write(outputText)
 

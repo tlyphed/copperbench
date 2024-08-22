@@ -43,6 +43,7 @@ Advanced parameters (usually do not need changing):
 * `max_parallel_jobs`: The maximum number of jobs that will be executed in parallel (default `None` which means no limit).
 * `instances_are_parameters`: Specifies that the instance file contains parameters rather than files (default `false`).
 * `data_to_main_mem`: Copy instance files into main memory (default `true`).
+* `exclude_nodes`: Names of compute nodes to be excluded from job execution. Specify as a comma-separated string or list of node names (default `None`).
 
 There are three meta-arguments which can be used in the executable string and config files. Namely, `$seed`, `$timeout`, `$file{<path/to/file>}`. During job generation the first two are replaced with the respective values where the `$seed` is randomly generated. The initial seed for this generation can be specified with the optional field `initial_seed` in the bench config. 
 Furthermore, since `timeout` is assumed to be in seconds, it is possible to factor that value with the optional `timeout_factor` parameter before it is substituted with `$timeout`.  

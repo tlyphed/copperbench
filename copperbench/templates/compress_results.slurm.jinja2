@@ -11,6 +11,9 @@
 #SBATCH --error=/dev/null
 {%- endif %}
 #SBATCH --ntasks=1
+{%- if exclude_nodes is not none %}
+#SBATCH --exclude={{ exclude_nodes }}
+{%- endif %}
 
 cd ~/{{ bench_path }}
 cd ..

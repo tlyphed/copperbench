@@ -19,7 +19,7 @@ Required fields are:
 * `configs`: Text file of configurations to be executed. One for each line.
 * `instances`: Text file of instances to be used. One for each line.
 * `timeout`: The time limit for each run in seconds. 
-* `mem_limit`: The memory limit for each run. 
+* `mem_limit`: The memory limit for each run in megabytes. 
 * `request_cpus`: The number of cores used in parallel in each run. 
 
 Further optional arguments:

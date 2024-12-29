@@ -18,7 +18,7 @@ def process_bench(bench_folder: Union[Path, str], log_read_func: Callable[[Path]
         metadata = None
 
     regex_slurm = re.compile(r"Date:\s+(?P<slurm_date>.+)\nNode:\s+(?P<slurm_node>.+)\nCpus_allowed:\s+(?P<slurm_cpumask>.+)")
-    regex_runsolver = re.compile(r"(?s:.*)Max\. virtual memory \(cumulated for all children\) \(KiB\): (?P<runsolver_max_virt_mem_kb>\d+)\nMax\. memory \(cumulated for all children\) \(KiB\): (?P<runsolver_max_mem_kb>\d+)")
+    regex_runsolver = re.compile(r"/(?s:.*)Max\. virtual memory \(cumulated for all children\) \(KiB\): (?P<runsolver_max_virt_mem_kb>\d+)\nMax\. memory \(cumulated for all children\) \(KiB\): (?P<runsolver_max_mem_kb>\d+)(?s:.*)maximum resident set size= (?P<runsolver_max_rss>\d+)/gm")
 
     data = []
     for config_dir in os.scandir(bench_folder):

@@ -107,8 +107,8 @@ def main() -> None:
     if bench_config.exclude_nodes and isinstance(bench_config.exclude_nodes, list):
         bench_config.exclude_nodes = ",".join(bench_config.exclude_nodes)
 
-    rs_time = bench_config.timeout + bench_config.slurm_time_buffer
-    slurm_time = rs_time + bench_config.runsolver_kill_delay
+    rs_time = bench_config.timeout + bench_config.runsolver_kill_delay
+    slurm_time = rs_time + bench_config.slurm_time_buffer
 
     for instanceset_name, instancelist_filename in instance_dict.items():
         if (instanceset_name.startswith("%") or instanceset_name.startswith("#") or

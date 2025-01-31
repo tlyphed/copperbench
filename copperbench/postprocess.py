@@ -63,12 +63,12 @@ def process_bench(bench_folder: Union[Path, str], log_read_func: Callable[[Path]
                                             times = lines[-3:]
                                             for event in events:
                                                 split = [ e for e in event.split(' ') if len(e) > 0 ]
-                                                value = int(split[0].replace(".", ""))
+                                                value = int(split[0].replace(",", "").replace(".", ""))
                                                 variable = split[1]
                                                 entry[f'perf_{variable}'] = value
                                             for time in times:
                                                 t = time.split(' ')
-                                                value = float(t[0].replace(".", "").replace(",", "."))
+                                                value = float(t[0].replace(",", "."))
                                                 variable = '-'.join(t[1:])
                                                 entry[f'perf_{variable}'] = value
                                         

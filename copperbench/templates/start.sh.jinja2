@@ -89,6 +89,12 @@ myenv=""
 {%- if cmd_cwd %}
 pushd {{ cmd_dir }}
 {%- endif %}
+
+# clear cache if tool is on node
+if [ -f /opt/clearcache ] ; then
+    /opt/clearcache
+fi
+
 # execute run
 {%- if use_perf %}
 env $myenv {{ runsolver_str }} -w {{ shm_dir }}/output/runsolver.log -v {{ shm_dir }}/output/varfile.log -W {{ rs_time }} --rss-swap-limit {{ mem_limit }} -d {{ runsolver_kill_delay }} /usr/bin/perf {{ perf_prefix }} {{ perf_events }} -o {{ shm_dir }}/output/perf.log {{ solver_cmd }} 2> {{ shm_dir }}/output/stderr.log 1> {{ shm_dir }}/output/stdout.log &

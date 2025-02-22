@@ -1,0 +1,18 @@
+#!/usr/bin/env python3
+
+{{ postprocess_script }}
+
+pattern = re.compile(r"{{ regex }}")
+data = postprocess.process_bench_regex('.', 
+                                 pattern, 
+                                 include_metrics=True)
+
+import csv
+
+with open('results.csv', 'w', newline='') as csvfile:
+    fieldnames = data[0].keys()
+    writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+    writer.writeheader()
+    writer.writerows(data)
+
+

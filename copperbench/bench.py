@@ -396,6 +396,31 @@ def main() -> None:
             with open(base_path / 'compress_results.slurm', 'w') as fh:
                 fh.write(outputText)
 
+            module_dir = os.path.dirname(__file__) 
+            postprocess_script_path = os.path.join(module_dir, 'postprocess.py')
+
+            with open(postprocess_script_path, 'r') as f:
+                postprocess_content = f.read()
+            postprocess_path = Path(base_path, 'postprocess_results.py')
+            re_pattern = ""
+            postprocess = templateEnv.get_template('postprocess_results.py.jinja2')
+            outputText = postprocess.render(postprocess_script=postprocess_content, regex=re_pattern)
+            with open(postprocess_path, 'w') as fh:
+                fh.write(outputText)
+            st = os.stat(postprocess_path)
+            os.chmod(postprocess_path, st.st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+
+            postprocess_results_slurm = templateEnv.get_template('postprocess_results.slurm.jinja2')
+            outputText = postprocess_results_slurm.render(benchmark_name=instanceset_name, partition=postprocess_partition,
+                                                       bench_path=bench_path,
+                                                       write_scheduler_logs=bench_config.write_scheduler_logs,
+                                                       output_path=output_path,
+                                                       exclude_nodes=bench_config.exclude_nodes,
+                                                       postprocess_script=postprocess_path)
+            with open(base_path / 'postprocess_results.slurm', 'w') as fh:
+                fh.write(outputText)
+
+
             submit_sh_path = Path(base_path, 'submit_all.sh')
             submit_all = templateEnv.get_template('submit_all.sh.jinja2')
             wd = os.path.relpath(base_path, start=starthome)

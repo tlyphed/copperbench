@@ -69,6 +69,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter,
                                      description=f'copperbench (version {__version__})')
     parser.add_argument('bench_config_file')
+    parser.add_argument('-s', '--submit-all',
+                    action='store_true')
     args = parser.parse_args()
 
     bench_config_dir = os.path.dirname(os.path.realpath(args.bench_config_file))
@@ -403,3 +405,7 @@ def main() -> None:
 
             st = os.stat(submit_sh_path)
             os.chmod(submit_sh_path, st.st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+
+            print(f"wrote files to {base_path}")
+            if args.submit_all:
+                os.system(f"{submit_sh_path}")

@@ -4,4 +4,4 @@ cd ~/{{ wd }}
 bench_jid=$(sbatch --parsable batch_job.slurm)
 echo "Submitted benchmark job ${bench_jid}"
 compress_jid=$(sbatch --parsable --dependency=afterany:${bench_jid} compress_results.slurm)
-echo "Submitted compression job ${compress_jid}"
+echo "Submitted results compression job ${compress_jid}"

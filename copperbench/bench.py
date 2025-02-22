@@ -406,6 +406,7 @@ def main() -> None:
             st = os.stat(submit_sh_path)
             os.chmod(submit_sh_path, st.st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
 
-            print(f"wrote files to {base_path}")
+            print(f"Wrote files to {os.path.abspath(base_path)}")
             if args.submit_all:
+                print(f"Submitting jobs directly to slurm...")
                 os.system(f"{submit_sh_path}")

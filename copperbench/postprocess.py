@@ -17,7 +17,7 @@ def process_bench(bench_folder: Union[Path, str], log_read_func: Callable[[Path]
     else:
         metadata = None
 
-    regex_slurm = re.compile(r"Date:\s+(?P<slurm_date>.+)\nNode:\s+(?P<slurm_node>.+)\nCpus_allowed:\s+(?P<slurm_cpumask>.+)")
+    regex_slurm = re.compile(r"Date:\s+(?P<slurm_date>.+)\nNode:\s+(?P<slurm_node>.+)\n(?s:.)*Cpus_allowed:\s+(?P<slurm_cpumask>.+)\nresctrl cache mask:\s+(?P<slurm_cachemask>.+)")
     regex_runsolver = re.compile(r"(?s:.*)Max\. virtual memory \(cumulated for all children\) \(KiB\): (?P<runsolver_max_virt_mem_kb>\d+)\nMax\. memory \(cumulated for all children\) \(KiB\): (?P<runsolver_max_mem_kb>\d+)(?s:.*)maximum resident set size= (?P<runsolver_max_rss>\d+)")
 
     data = []
@@ -43,8 +43,11 @@ def process_bench(bench_folder: Union[Path, str], log_read_func: Callable[[Path]
                                     inst_name = instance_dir.name
                                 entry = {}
                                 entry['config'] = conf_name
+                                entry['config_id'] = config_dir.name[6:]
                                 entry['instance'] = inst_name
+                                entry['instance_id'] = instance_dir.name[8:]
                                 entry['run'] = run_dir.name[3:]
+
                                 if include_metrics:
                                     with open(Path(run_dir, 'node_info.log'), 'r') as file:
                                         match = regex_slurm.match(file.read())
@@ -87,3 +90,4 @@ def process_bench_regex(bench_folder: Union[Path, str], regex: Pattern,
                 return match.groupdict()
 
     return process_bench(bench_folder, read_log, metadata_file, include_metrics=include_metrics)
+

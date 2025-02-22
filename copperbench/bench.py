@@ -56,12 +56,13 @@ class BenchConfig:
     max_parallel_jobs: Optional[int] = None
     overwrite: bool = False
     email: Optional[str] = None
-    write_scheuler_logs: Optional[bool] = True
+    write_scheduler_logs: Optional[bool] = True
     cmd_cwd: Optional[bool] = False
     starexec_compatible: Optional[bool] = False
     instances_are_parameters: Optional[bool] = False
     data_to_main_mem = True
     exclude_nodes: Optional[Union[str, list]] = None
+    postprocess_partition: str = None
 
 
 def main() -> None:
@@ -371,7 +372,7 @@ def main() -> None:
                                                account=bench_config.billing,
                                                cache_lines=cache_lines,
                                                min_freq=min_freq, max_freq=max_freq,
-                                               write_scheduler_logs=bench_config.write_scheuler_logs,
+                                               write_scheduler_logs=bench_config.write_scheduler_logs,
                                                output_path=output_path,
                                                max_parallel_jobs=bench_config.max_parallel_jobs,
                                                lstart_scripts=len(start_scripts), exclusive=bench_config.exclusive,
@@ -380,10 +381,14 @@ def main() -> None:
             with open(base_path / 'batch_job.slurm', 'w') as fh:
                 fh.write(outputText)
 
+            postprocess_partition = bench_config.partition
+            if bench_config.postprocess_partition != None:
+                postprocess_partition = bench_config.postprocess_partition
+
             compress_results_slurm = templateEnv.get_template('compress_results.slurm.jinja2')
-            outputText = compress_results_slurm.render(benchmark_name=instanceset_name, partition=bench_config.partition,
+            outputText = compress_results_slurm.render(benchmark_name=instanceset_name, partition=postprocess_partition,
                                                        bench_path=bench_path,
-                                                       write_scheduler_logs=bench_config.write_scheuler_logs,
+                                                       write_scheduler_logs=bench_config.write_scheduler_logs,
                                                        output_path=output_path,
                                                        exclude_nodes=bench_config.exclude_nodes)
             with open(base_path / 'compress_results.slurm', 'w') as fh:

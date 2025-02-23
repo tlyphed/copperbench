@@ -13,7 +13,6 @@ from pathlib import Path
 from typing import Optional, Union
 import click
 import subprocess
-
 import jinja2
 
 from .__version__ import __version__
@@ -74,6 +73,7 @@ def submit_to_slurm(slurm_file: Path, prev_job_id: int = None) -> int:
     if prev_job_id != None:
         args += [f'--dependency=afterany:{prev_job_id}']
     args += [str(slurm_file)]
+    os.chdir(slurm_file.parent)
     job_id = int(subprocess.run(args, stdout=subprocess.PIPE).stdout.decode('utf-8'))
     print(f'Submitted {slurm_file} with job id {job_id}')
     

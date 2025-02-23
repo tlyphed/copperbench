@@ -23,7 +23,9 @@ Further optional arguments:
 * `working_dir`: The directory from which given paths are assumed to be relative (default: None).
 * `timeout_factor`: The factor with which `timeout` gets multiplied before it is passed to the config. (default: 1)
 * `initial_seed`: The initial seed used for generating random seeds.
-* `slurm_time_buffer`: The amount of seconds added to the run time before slurm forcefully ends the job (default: 10).
+* `runsolver_term_delay`: The amount of seconds added to the run time before runsolver gracefully tries to end the executable (default: 5).
+* `runsolver_kill_delay`: The amount of seconds added to the run time before runsolver forcefully tries to end the executable (default: 5).
+* `slurm_time_buffer`: The amount of seconds added to the run time before slurm ends the job (default: 10).
 * `exclusive`: Whether the benchmark should be run exclusively on each node (default: `false`).
 * `cpu_freq`: The used CPU frequency in MHz (max. 2900MHz). Default is the baseline frequency of 2200MHz. Higher values should be used at your own risk as they can increase non-reproducability.
 

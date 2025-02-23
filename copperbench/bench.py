@@ -63,6 +63,7 @@ class BenchConfig:
     data_to_main_mem = True
     exclude_nodes: Optional[Union[str, list]] = None
     postprocess_partition: str = None
+    postprocess_stdout_regex: str = None
 
 
 def main() -> None:
@@ -403,6 +404,8 @@ def main() -> None:
                 postprocess_content = f.read()
             postprocess_path = Path(base_path, 'postprocess_results.py')
             re_pattern = ""
+            if bench_config.postprocess_stdout_regex != None:
+                re_pattern = bench_config.postprocess_stdout_regex
             postprocess = templateEnv.get_template('postprocess_results.py.jinja2')
             outputText = postprocess.render(postprocess_script=postprocess_content, regex=re_pattern)
             with open(postprocess_path, 'w') as fh:

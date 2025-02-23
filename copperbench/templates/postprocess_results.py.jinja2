@@ -3,12 +3,12 @@
 {{ postprocess_script }}
 
 pattern = re.compile(r"{{ regex }}")
-data = process_bench_regex('.', pattern, include_metrics=True)
+data = process_bench_regex('.', pattern, metadata_file='metadata.json', include_metrics=True)
 
 import csv
 
 with open('results.csv', 'w', newline='') as csvfile:
-    fieldnames = data[0].keys()
+    fieldnames = set().union(*(d.keys() for d in data))
     writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
     writer.writeheader()
     writer.writerows(data)

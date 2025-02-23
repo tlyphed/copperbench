@@ -34,21 +34,21 @@ def process_bench(bench_folder: Union[Path, str], log_read_func: Callable[[Path]
                                 result = result | result_log
                             if result_err:
                                 result = result | result_err
-                            if result:
-                                if metadata != None:
-                                    conf_name = metadata['configs'][config_dir.name]
-                                    inst_name = metadata['instances'][instance_dir.name]
-                                else:
-                                    conf_name = config_dir.name
-                                    inst_name = instance_dir.name
-                                entry = {}
-                                entry['config'] = conf_name
-                                entry['config_id'] = config_dir.name[6:]
-                                entry['instance'] = inst_name
-                                entry['instance_id'] = instance_dir.name[8:]
-                                entry['run'] = run_dir.name[3:]
+                            
+                            if metadata != None:
+                                conf_name = metadata['configs'][config_dir.name].trim()
+                                inst_name = metadata['instances'][instance_dir.name].trim()
+                            else:
+                                conf_name = config_dir.name
+                                inst_name = instance_dir.name
+                            entry = {}
+                            entry['config'] = conf_name
+                            entry['config_id'] = config_dir.name[6:]
+                            entry['instance'] = inst_name
+                            entry['instance_id'] = instance_dir.name[8:]
+                            entry['run'] = run_dir.name[3:]
 
-                                if include_metrics:
+                            if include_metrics:
                                     with open(Path(run_dir, 'node_info.log'), 'r') as file:
                                         match = regex_slurm.match(file.read())
                                         if match != None:
@@ -75,7 +75,7 @@ def process_bench(bench_folder: Union[Path, str], log_read_func: Callable[[Path]
                                                 variable = '-'.join(t[1:])
                                                 entry[f'perf_{variable}'] = value
                                         
-                                data += [entry | result]
+                            data += [entry | result]
 
     return data
 

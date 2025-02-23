@@ -8,7 +8,8 @@ data = process_bench_regex('.', pattern, metadata_file='metadata.json', include_
 import csv
 
 with open('results.csv', 'w', newline='') as csvfile:
-    fieldnames = list(set().union(*(d.keys() for d in data))).sort()
+    fieldnames = list(set().union(*(d.keys() for d in data)))
+    fieldnames.sort()
     writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
     writer.writeheader()
     writer.writerows(data)

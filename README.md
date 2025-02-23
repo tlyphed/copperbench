@@ -2,12 +2,7 @@
 
 Lightweight tool to create reproducible benchmarks for copperhead.
 
-You can either use it as a script:
-```
-python copperbench.py <bench_config_file>
-```
-
-or install it as a python module:
+Install it as a python module:
 ```
 python -m pip install .
 copperbench <bench_config_file>
@@ -51,7 +46,7 @@ The meta-argument `$file{<path/to/file>}` can be used to specify files which sho
 
 The instance files are supposed to contain files only, which will be automatically copied into main memory before solver execution. You can supply multiple files (separated by space, comma or semicolon) and if need be reference them in the config. See [here](examples/tlsp/) for an example.
 
-The tool tries to ensure that each job always gets the memory lines exclusively, which in practice means that each job is always scheduled on at least 3 cores and the number of requested cores is always a multiple of 6 (cpus / mem lines = 24 / 8 = 3). 
+The tool tries to ensure that each job always gets the memory lines exclusively, which in practice means that each job is always scheduled on at least 3 cores and the number of requested cores is always a multiple of 3 (cpus / mem lines = 24 / 8 = 3). 
 
 copperbench then creates the following folder structure and files:
 ```

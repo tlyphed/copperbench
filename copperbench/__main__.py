@@ -1,8 +1,4 @@
-
-from . import bench
-
-def main():
-    bench.main()
+from .bench import main
 
 if __name__ == "__main__":
     main()

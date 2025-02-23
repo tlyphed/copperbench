@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project.scripts]
-copperbench = "copperbench:__main__.main"
+copperbench = "copperbench.bench:main"
 
 [tool.setuptools.dynamic]
 version = {attr = "copperbench.__version__.__version__"}

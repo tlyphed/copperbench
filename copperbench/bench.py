@@ -72,7 +72,7 @@ def submit_to_slurm(slurm_file: Path, prev_job_id: int = None) -> int:
     args = ['sbatch', '--parsable']
     if prev_job_id != None:
         args += [f'--dependency=afterany:{prev_job_id}']
-    args += [str(slurm_file)]
+    args += [slurm_file.name]
     os.chdir(slurm_file.parent)
     job_id = int(subprocess.run(args, stdout=subprocess.PIPE).stdout.decode('utf-8'))
     print(f'Submitted {slurm_file} with job id {job_id}')

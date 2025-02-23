@@ -36,8 +36,8 @@ def process_bench(bench_folder: Union[Path, str], log_read_func: Callable[[Path]
                                 result = result | result_err
                             
                             if metadata != None:
-                                conf_name = metadata['configs'][config_dir.name].trim()
-                                inst_name = metadata['instances'][instance_dir.name].trim()
+                                conf_name = metadata['configs'][config_dir.name].strip()
+                                inst_name = metadata['instances'][instance_dir.name].strip()
                             else:
                                 conf_name = config_dir.name
                                 inst_name = instance_dir.name

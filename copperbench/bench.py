@@ -68,12 +68,12 @@ class BenchConfig:
     postprocess_stdout_regex: str = None
 
 
-def submit_to_slurm(slurm_file: Path, prev_job_id: int = None) -> int:
+def submit_to_slurm(base_path: Path, slurm_file: str, prev_job_id: int = None) -> int:
     args = ['sbatch', '--parsable']
     if prev_job_id != None:
         args += [f'--dependency=afterany:{prev_job_id}']
-    args += [slurm_file.name]
-    os.chdir(slurm_file.parent)
+    args += [slurm_file]
+    os.chdir(base_path)
     job_id = int(subprocess.run(args, stdout=subprocess.PIPE).stdout.decode('utf-8'))
     print(f'Submitted {slurm_file} with job id {job_id}')
     
@@ -449,10 +449,10 @@ def main(bench_config_file: Path, submit: str) -> None:
                     print(f"Submitting jobs directly to slurm...")
                     prev_id = None
                     if submit == "bench" or submit == "all":
-                        prev_id = submit_to_slurm(base_path / 'batch_job.slurm')
+                        prev_id = submit_to_slurm(os.path.abspath(base_path), 'batch_job.slurm')
                     if submit == "postprocess" or submit == "all":
-                        prev_id = submit_to_slurm(base_path / 'postprocess_results.slurm', prev_job_id=prev_id)
+                        prev_id = submit_to_slurm(os.path.abspath(base_path), 'postprocess_results.slurm', prev_job_id=prev_id)
                     if submit == "compress" or submit == "all":
-                        prev_id = submit_to_slurm(base_path / 'compress_results.slurm', prev_job_id=prev_id)
+                        prev_id = submit_to_slurm(os.path.abspath(base_path), 'compress_results.slurm', prev_job_id=prev_id)
                     
 

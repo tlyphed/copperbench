@@ -450,9 +450,9 @@ def main(bench_config_file: Path, submit: str) -> None:
                     prev_id = None
                     if submit == "bench" or submit == "all":
                         prev_id = submit_to_slurm(base_path / 'batch_job.slurm')
-                    if submit == "compress" or submit == "all":
-                        prev_id = submit_to_slurm(base_path / 'compress_results.slurm', prev_job_id=prev_id)
                     if submit == "postprocess" or submit == "all":
                         prev_id = submit_to_slurm(base_path / 'postprocess_results.slurm', prev_job_id=prev_id)
+                    if submit == "compress" or submit == "all":
+                        prev_id = submit_to_slurm(base_path / 'compress_results.slurm', prev_job_id=prev_id)
                     
 

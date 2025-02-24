@@ -1,0 +1,3 @@
+$file{~/sat_solvers/bin/cadical} -t $timeout
+$file{~/sat_solvers/bin/glucose_static} -rnd-seed=7 -cpu-lim=$timeout
+$file{~/sat_solvers/bin/kissat} --time=$timeout 

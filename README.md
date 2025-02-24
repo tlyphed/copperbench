@@ -1,11 +1,11 @@
 # copperbench
 
-Lightweight tool to create reproducible benchmarks for copperhead.
+Lightweight tool to create reproducible benchmarks for copperhead. It requires a patched version of runsolver, which can be found [here](https://github.com/tlyphed/runsolver).
 
 Install it as a python module:
 ```
 python -m pip install .
-copperbench <bench_config_file>
+copperbench <bench_config_file> [--submit [bench|compress|postprocess|all]]
 ```
 
 The only argument `bench_config.json` contains parameters specific to the current benchmark like the executable that should be run. 
@@ -28,16 +28,19 @@ Further optional arguments:
 * `slurm_time_buffer`: The amount of seconds added to the run time before slurm ends the job (default: 10).
 * `exclusive`: Whether the benchmark should be run exclusively on each node (default: `false`).
 * `cpu_freq`: The used CPU frequency in MHz (max. 2900MHz). Default is the baseline frequency of 2200MHz. Higher values should be used at your own risk as they can increase non-reproducability.
+* `max_parallel_jobs`: The maximum number of jobs that will be executed in parallel (default `None` which means no limit).
+* `postprocess_stdout_regex`: A regular expression which is added to the postprocessing and performed on the stdout of a run (default: `None`)
 
 Advanced parameters (usually do not need changing):
-* `partition`: The slurm partition to which the jobs get submitted (default: `"broadwell"`)
+* `partition`: The slurm partition to which the jobs get submitted (default: `broadwell`)
+* `postprocess_partition`: The slurm partition to which the postprocess and compression jobs are submitted (default: `any`, if `None` then same as `partition`)
 * `cpus_per_node`: Number of CPU cores per node (default: 24).
 * `mem_lines`: Number of memory lines to be used per node (default: 8).
 * `use_perf`: Whether `perf` should be used for monitoring (default: `true`).
 * `symlink_working_dir`: Whether symlinks should be created in the run dir so that the solver can find potentially referenced files (default: `true`).
-* `runsolver_path`: The path to the runsolver binary.
+* `runsolver_path`: The path to the runsolver binary (default: `/opt/runsolver`).
+* `clearcache_path`: The path to the clearcache binary which resets the cache at the start of each run (default: `/opt/clearcache`).
 * `billing`: The SLURM account the job will be billed to (default `None`).
-* `max_parallel_jobs`: The maximum number of jobs that will be executed in parallel (default `None` which means no limit).
 * `instances_are_parameters`: Specifies that the instance file contains parameters rather than files (default `false`).
 * `data_to_main_mem`: Copy instance files into main memory (default `true`).
 * `exclude_nodes`: Names of compute nodes to be excluded from job execution. Specify as a comma-separated string or list of node names (default `None`).
@@ -69,15 +72,18 @@ copperbench then creates the following folder structure and files:
 |__slurm_logs
 |__metadata.json
 |__start_list.txt
+|__postprocess_results.py
 |__batch_job.slurm
+|__postprocess_results.slurm
 |__compress_results.slurm
 |__submit_all.sh
 ```
 
-The file `batch_job.slurm` can then be submitted with `sbatch` to schedule each `start.sh` and `compress_results.slurm` can be submitted to tar the whole benchmark folder for easier download.
-Furthermore, calling the script `submit_all.sh` schedules both `batch_job.slurm` and `compress_results.slurm` such that the compression is only performed after all runs have finished.
+The config and instance folders are numbered in the given order, but copperbench also creates a JSON file `metadata.json` linking them to what was specified in `config.txt` and `instances.txt`.
 
-The config and instance folders are numbered in the given order, but copperbench also creates a json file `metadata.json` linking them to what was specified in `config.txt` and `instances.txt`.
+The file `batch_job.slurm` can then be submitted with `sbatch` to schedule each `start.sh` and `compress_results.slurm` can be submitted to tar the whole benchmark folder for easier download. 
+The file `postprocess_results.slurm` schedules `postprocess_results.py` which is a self-contained Python script that iterates through the output of the runs and summarizes the data in a CSV file `results.csv`. Note that `postprocess_results.py` can also be run locally, potentially after some modifications.
+Furthermore, calling the script `submit_all.sh` schedules `batch_job.slurm`, `postprocess_results.slurm` and `compress_results.slurm` consecutively.
+The latter can also be achieved directly through the `--submit` argument.
 
-An example of how the results can be processed is given [here](examples/tlsp/evaluation.py). Do not do this on the cluster, but rather copy the files to your machine first.
-
+An example of how the results can be processed locally is given [here](examples/tlsp/evaluation.py). 

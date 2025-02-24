@@ -1,0 +1,21 @@
+{
+  "name": "test1_configdict",
+  "configs": {
+    "bench1": "configs_1.txt",
+    "bench2": "configs_1.txt",
+    "#bench3": "configs_skippme.txt"
+  },
+  "instances": {
+    "set1": "instances_1.txt",
+    "set2": "instances_2.txt"
+  },
+  "timeout": 60,
+  "mem_limit": 25600,
+  "request_cpus": 4,
+  "runs": 1,
+  "runsolver_kill_delay": 10,
+  "slurm_time_buffer": 5,
+  "timeout_factor": 1,
+  "cpus_per_node": 24,
+  "max_parallel_jobs": 8
+}

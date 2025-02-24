@@ -90,10 +90,12 @@ myenv=""
 pushd {{ cmd_dir }}
 {%- endif %}
 
-# clear cache if tool is on node
-if [ -f /opt/clearcache ] ; then
-    /opt/clearcache
+{%- if clearcache_path is not none %}
+# clear cache if tool is configured and present
+if [ -f {{ clearcache_path }} ] ; then
+    {{ clearcache_path }}
 fi
+{%- endif %}
 
 # execute run
 {%- if use_perf %}

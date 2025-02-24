@@ -1,0 +1,17 @@
+{
+    "name" : "sat_bench",
+    "timeout" : 900,
+    "runs" : 5,
+    "mem_limit" : 10240,
+    "request_cpus" : 1,
+    "configs" : "configs.txt",
+    "instances" : "instances.txt",
+    "runsolver_term_delay": 0,
+    "runsolver_kill_delay" : 5,
+    "slurm_time_buffer": 10,
+    "partition": "sunnycove",
+    "cpus_per_node": 32,
+    "mem_lines": 16,
+    "cpu_freq" : 2400,
+    "postprocess_stdout_regex" : "(?s:.*)(s (?P<solver_result>SATISFIABLE|UNSATISFIABLE))"
+}

@@ -48,12 +48,14 @@ class BenchConfig:
     timeout_factor: int = 1
     initial_seed: Optional[int] = None
     partition: str = 'broadwell'
+    postprocess_partition: str = 'any'
     cpus_per_node: int = 24
     mem_lines: int = 8
     exclusive: bool = False
     cpu_freq: int = 2200
     use_perf: bool = True
     runsolver_path: str = "/opt/runsolver"
+    clearcache_path: str = "/opt/clearcache"
     billing: Optional[str] = None
     max_parallel_jobs: Optional[int] = None
     overwrite: bool = False
@@ -64,7 +66,6 @@ class BenchConfig:
     instances_are_parameters: Optional[bool] = False
     data_to_main_mem = True
     exclude_nodes: Optional[Union[str, list]] = None
-    postprocess_partition: str = None
     postprocess_stdout_regex: str = None
 
 
@@ -355,7 +356,8 @@ def main(bench_config_file: Path, submit: str) -> None:
                                                             runsolver_kill_delay=bench_config.runsolver_kill_delay,
                                                             input_line=input_line, cmd_cwd=bench_config.cmd_cwd,
                                                             cmd_dir=os.path.dirname(cmd.split(' ')[0]),
-                                                            starexec=bench_config.starexec_compatible)
+                                                            starexec=bench_config.starexec_compatible,
+                                                            clearcache_path=bench_config.clearcache_path)
                             with open(f"{job_path}", 'w') as fh:
                                 fh.write(outputText)
 
@@ -412,11 +414,8 @@ def main(bench_config_file: Path, submit: str) -> None:
                 with open(postprocess_script_path, 'r') as f:
                     postprocess_content = f.read()
                 postprocess_path = Path(base_path, 'postprocess_results.py')
-                re_pattern = ""
-                if bench_config.postprocess_stdout_regex != None:
-                    re_pattern = bench_config.postprocess_stdout_regex
                 postprocess = templateEnv.get_template('postprocess_results.py.jinja2')
-                outputText = postprocess.render(postprocess_script=postprocess_content, regex=re_pattern)
+                outputText = postprocess.render(postprocess_script=postprocess_content, regex=bench_config.postprocess_stdout_regex)
                 with open(postprocess_path, 'w') as fh:
                     fh.write(outputText)
                 st = os.stat(postprocess_path)

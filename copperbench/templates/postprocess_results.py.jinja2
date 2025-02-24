@@ -16,7 +16,9 @@ def read_log_regex(log_file):
 def read_log(log_file):
     result = {}
     {%- if regex is not none %}
-    result = result | read_log_regex(log_file)
+    re_result = read_log_regex(log_file)
+    if re_result != None:
+        result = result | re_result
     {%- endif %}
     return result
 

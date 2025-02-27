@@ -19,6 +19,7 @@ from .__version__ import __version__
 
 PERF_PREFIX = f'stat -B -e'
 PERF_EVENTS = [
+    'task-clock',
     'cache-references',
     'cache-misses',
     'cycles',
@@ -78,6 +79,7 @@ def submit_to_slurm(slurm_file: str, prev_job_id: int = None) -> int:
     print(f'Submitted {slurm_file} with job id {job_id}')
     
     return job_id
+
 
 
 @click.command()

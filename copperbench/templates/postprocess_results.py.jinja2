@@ -4,11 +4,6 @@ import csv
 
 {{ postprocess_script }}
 
-{%- if read_log_func is not none %}
-
-{{ read_log_func }}
-
-{%- else %}
 
 {%- if regex is not none %}
 pattern = re.compile(r"{{ regex }}")
@@ -27,8 +22,6 @@ def read_log(log_file):
         result = result | re_result
     {%- endif %}
     return result
-
-{%- endif %}
 
 
 data = process_bench('.', read_log, metadata_file='metadata.json', include_metrics=True)

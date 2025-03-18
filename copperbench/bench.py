@@ -15,8 +15,6 @@ import click
 import subprocess
 import jinja2
 
-from .__version__ import __version__
-
 PERF_PREFIX = f'stat -B -e'
 PERF_EVENTS = [
     'task-clock',

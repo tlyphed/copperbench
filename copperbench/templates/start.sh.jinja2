@@ -44,6 +44,13 @@ _term() {
 trap _term SIGTERM
 trap _cleanup EXIT
 
+if [ -f {{ log_folder }}/00_finished.log ] ; then
+    echo ">>>Solver already finished before. File '00_finished.log' exists."
+    echo ">>>...Run the following command manually, if you want to proceed find $(realpath .) -name 00_finished.log -exec rm {} \;"
+    echo ">>>...stopping here..."
+    exit 4
+fi
+
 # change into job directory
 mkdir {{ shm_dir }}
 cd {{ shm_dir }}
@@ -74,13 +81,8 @@ echo $(cat /proc/meminfo  | grep MemTotal) >> node_info.log
 echo $(cat /proc/cpuinfo  | egrep "^model name|^cache size" | head -2) >> node_info.log
 cat /proc/self/status | grep Cpus_allowed: >> node_info.log
 echo resctrl cache mask: $(cat /sys/fs/resctrl/$SLURM_JOB_ID/schemata | tail -1) >> node_info.log
+echo Slurm Job ID: $SLURM_JOBID >> node_info.log
 
-if [ -f {{ log_folder }}/00_finished.log ] ; then
-    echo ">>>Solver already finished before. File '00_finished.log' exists."
-    echo ">>>...Run the following command manually, if you want to proceed find $(realpath .) -name 00_finished.log -exec rm {} \;"
-    echo ">>>...stopping here..."
-    exit 4
-fi
 {%- if starexec %}
 myenv="STAREXEC_WALLCLOCK_LIMIT={{ rs_time }} TMP_OUT={{ shm_dir }}/input STAREXEC_MAX_MEM={{ mem_limit }}"
 {%- else %}

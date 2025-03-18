@@ -83,6 +83,7 @@ def submit_to_slurm(slurm_file: str, prev_job_id: int = None) -> int:
 @click.command()
 @click.argument('bench_config_file', type=Path)
 @click.option('-s', '--submit', type=click.Choice(['bench', 'compress', 'postprocess', 'all']), required = False)
+@click.version_option()
 def main(bench_config_file: Path, submit: str) -> None:
 
     bench_config_dir = os.path.dirname(os.path.realpath(bench_config_file))

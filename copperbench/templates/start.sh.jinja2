@@ -81,7 +81,7 @@ echo $(cat /proc/meminfo  | grep MemTotal) >> node_info.log
 echo $(cat /proc/cpuinfo  | egrep "^model name|^cache size" | head -2) >> node_info.log
 cat /proc/self/status | grep Cpus_allowed: >> node_info.log
 echo resctrl cache mask: $(cat /sys/fs/resctrl/$SLURM_JOB_ID/schemata | tail -1) >> node_info.log
-echo Slurm Job ID: $SLURM_ARRAY_JOB_ID_$SLURM_ARRAY_TASK_ID >> node_info.log
+echo Slurm Job ID: $SLURM_ARRAY_JOB_ID"_"$SLURM_ARRAY_TASK_ID >> node_info.log
 
 {%- if starexec %}
 myenv="STAREXEC_WALLCLOCK_LIMIT={{ rs_time }} TMP_OUT={{ shm_dir }}/input STAREXEC_MAX_MEM={{ mem_limit }}"

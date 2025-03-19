@@ -37,7 +37,7 @@ def process_bench(bench_folder: Union[Path, str], log_read_func: Callable[[Path]
                                     
                             stderr_log = Path(run_dir, 'stderr.log')
                             if stderr_log.exists():
-                                result_err = log_read_func(stderr_log)
+                                result_err = err_read_func(stderr_log)
                                 if result_err:
                                     result = result | result_err                            
                             

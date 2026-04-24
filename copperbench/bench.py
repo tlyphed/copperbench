@@ -46,12 +46,12 @@ class BenchConfig:
     slurm_time_buffer: int = 30
     timeout_factor: int = 1
     initial_seed: Optional[int] = None
-    partition: str = 'broadwell'
+    partition: str = 'sunnycove'
     postprocess_partition: str = 'any'
-    cpus_per_node: int = 24
-    mem_lines: int = 8
+    cpus_per_node: int = 32
+    mem_lines: int = 16
     exclusive: bool = False
-    cpu_freq: int = 2200
+    cpu_freq: int = 2400
     use_perf: bool = True
     runsolver_path: str = "/opt/runsolver"
     clearcache_path: str = "/opt/clearcache"

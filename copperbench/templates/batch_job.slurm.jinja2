@@ -26,7 +26,7 @@
 {%- else %}
 #SBATCH --array=1-{{ lstart_scripts }}
 {%- endif %}
-{%- if exclusive %}:
+{%- if exclusive %}
 #SBATCH --exclusive=user
 {%- endif %}
 #SBATCH --ntasks=1
